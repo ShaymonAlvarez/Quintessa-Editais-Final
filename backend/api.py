@@ -86,7 +86,7 @@ class PerplexityRequest(BaseModel):
     save: bool = True
     edital_link: Optional[str] = None
     edital_pages: Optional[int] = None
-
+    link_tokens: Optional[int] = 0
 class TokenCountRequest(BaseModel):
     url: str
 

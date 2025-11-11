@@ -3,9 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <title>Editais Watcher</title>
-    <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="stylesheet" href="/static/styles.css?v=qs-roxo-2">
+    <!-- Garantia de comportamento de abas: só mostra a ativa -->
+    <style>
+      .tab-panel{display:none;}
+      .tab-panel.active{display:block;}
+    </style>
   </head>
-  <body>
+  <body class="collect-theme">
     <header class="app-header">
       <h1>🗞️ Automação de Editais - Quintessa</h1>
     </header>
@@ -16,418 +21,325 @@
         <button class="tab-btn" data-tab="perplexity">🔎 Pesquisa (Perplexity)</button>
       </nav>
 
+      <!-- ABA: COLETA E GESTÃO -->
       <section id="tab-manage" class="tab-panel active">
-        <section class="config-panel">
-          <h2>Configuração</h2>
-          <div class="config-row">
-            <label for="preset-min-days">Prazo mínimo até o encerramento</label>
-            <select id="preset-min-days">
-              <option value="7">7 dias</option>
-              <option value="10">10 dias</option>
-              <option value="15">15 dias</option>
-              <option value="custom">Personalizado</option>
-            </select>
-            <input
-              type="number"
-              id="custom-min-days"
-              min="0"
-              max="365"
-              step="1"
-              class="hidden"
-            />
-            <button id="btn-save-min-days">Salvar prazo</button>
+        <div class="collect-layout">
+          <!-- Sidebar -->
+          <aside class="collect-sidebar">
+            <div class="qs-logo">
+              <img src="/static/logo2.png" alt="QUINTESSA" />
+            </div>
+
+            <nav class="side-actions">
+              <button class="side-cta" onclick="window.location.href='/'">PÁGINA INICIAL</button>
+              <button class="side-cta" onclick="location.hash='#perplexity'">PESQUISA NO PERPLEXITY</button>
+              <a class="side-cta" href="https://docs.google.com/spreadsheets/" target="_blank" rel="noopener">IR PARA PLANILHA ATUAL</a>
+            </nav>
+          </aside>
+
+          <!-- Conteúdo -->
+          <div class="collect-content">
+            <header class="collect-hero">
+              <h2>BUSCA E COLETA</h2>
+            </header>
+
+            <!-- Toolbar em 3 colunas -->
+            <section class="collect-toolbar">
+              <!-- ESQ: FILTRAR POR -->
+              <div class="filter-column">
+                <div class="filter-line">
+                  <div class="filter-title">FILTRAR POR:</div>
+                  <div class="filter-chips filter-chips-inline">
+                    <button class="chip" id="chip-data">
+                      Data: dd/mm/aaaa <span class="caret">▾</span>
+                    </button>
+
+                    <button class="chip" id="chip-valor">
+                      Valor: de 0 até 5mil reais <span class="caret">▾</span>
+                    </button>
+
+                    <button class="chip chip-deadline" data-deadline="7">7 dias</button>
+                    <button class="chip chip-deadline" data-deadline="10">10 dias</button>
+                    <button class="chip chip-deadline" data-deadline="15">15 ou + dias</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- MEIO: grupos -->
+              <div class="groups-column">
+                <div class="groups-to-collect">
+                  <div class="groups-title">GRUPOS A COLETAR</div>
+                  <div id="groups-checkboxes" class="groups-list"></div>
+                </div>
+              </div>
+
+              <!-- DIR: ações empilhadas -->
+              <div class="actions-column">
+                <button id="btn-diag" class="pill-btn">DIAGNÓSTICO</button>
+                <button id="btn-clear-all" class="pill-btn pill-alt">RESETAR PLANILHA</button>
+                <button id="btn-run-collect" class="pill-btn pill-primary">RODAR COLETA</button>
+              </div>
+            </section>
+
+            <!-- input de data invisível para seletor nativo -->
+            <input type="date" id="filter-date" class="visually-hidden-date" />
+
+            <!-- Overlays (iniciam escondidos) -->
+            <div id="collect-progress" class="progress-overlay hidden">
+              <div class="progress-box">
+                <span id="collect-progress-label" class="progress-label">Preparando coleta…</span>
+                <progress id="collect-progress-bar" value="0" max="1"></progress>
+                <button id="btn-cancel-collect" class="danger" data-keep-enabled="true">Cancelar coleta</button>
+              </div>
+            </div>
+
+            <div id="collect-result"></div>
+
+            <!-- Diagnóstico (escondido até clicar) -->
+            <section id="diag-section" class="hidden">
+              <h2>🔬 Diagnóstico dos providers</h2>
+              <div class="diag-filters">
+                <div>
+                  <label>Regex Governo/Multilaterais</label>
+                  <input id="diag-re-gov" type="text" />
+                </div>
+                <div>
+                  <label>Regex Filantropia</label>
+                  <input id="diag-re-phil" type="text" />
+                </div>
+                <div>
+                  <label>Regex América Latina / Brasil</label>
+                  <input id="diag-re-latam" type="text" />
+                </div>
+                <button id="btn-run-diag">Rodar diag</button>
+              </div>
+
+              <div id="diag-progress" class="progress-overlay hidden">
+                <div class="progress-box">
+                  <span id="diag-progress-label" class="progress-label">Preparando diagnóstico…</span>
+                  <progress id="diag-progress-bar"></progress>
+                  <button id="btn-cancel-diag" class="danger" data-keep-enabled="true">Cancelar diagnóstico</button>
+                </div>
+              </div>
+
+              <div id="diag-results"></div>
+            </section>
+
+            <!-- Grupos -->
+            <section id="groups-container"></section>
+
+            <section id="errors-section" class="hidden">
+              <h2>⚠️ Erros desta execução</h2>
+              <div id="errors-list"></div>
+            </section>
           </div>
+        </div>
 
-          <div class="config-row">
-            <button id="btn-clear-all" class="danger">
-              🧹 Limpar TODOS os itens
-            </button>
-          </div>
-        </section>
-
-        <section class="collect-panel">
-          <div class="collect-row">
-            <div class="collect-col">
-              <label>Grupos a coletar</label>
-              <div id="groups-checkboxes"></div>
-            </div>
-            <div class="collect-col buttons">
-              <button id="btn-run-collect" class="primary">
-                🔍 Rodar coleta agora
-              </button>
-              <button id="btn-refresh-items">🔄 Recarregar da planilha</button>
-              <button id="btn-diag">🔬 Diagnóstico</button>
+        <!-- Mini modal de VALOR -->
+        <div id="value-modal" class="modal hidden">
+          <div class="modal-card">
+            <h3>Filtrar por valor (R$)</h3>
+            <label class="modal-row">
+              Máximo:
+              <input type="number" id="value-max" min="0" step="100" placeholder="5000" />
+            </label>
+            <div class="modal-actions">
+              <button id="value-cancel">Cancelar</button>
+              <button id="value-apply" class="primary">Aplicar</button>
             </div>
           </div>
-
-          <!-- Barra de progresso + cancelamento da coleta -->
-          <div id="collect-progress" class="progress-overlay hidden">
-            <div class="progress-box">
-              <span id="collect-progress-label" class="progress-label">
-                Preparando coleta…
-              </span>
-              <progress
-                id="collect-progress-bar"
-                value="0"
-                max="1"
-              ></progress>
-              <button
-                id="btn-cancel-collect"
-                class="danger"
-                data-keep-enabled="true"
-              >
-                Cancelar coleta
-              </button>
-            </div>
-          </div>
-
-          <div id="collect-result"></div>
-        </section>
-
-        <section id="diag-section" class="hidden">
-          <h2>🔬 Diagnóstico dos providers</h2>
-          <div class="diag-filters">
-            <div>
-              <label>Regex Governo/Multilaterais</label>
-              <input id="diag-re-gov" type="text" />
-            </div>
-            <div>
-              <label>Regex Filantropia</label>
-              <input id="diag-re-phil" type="text" />
-            </div>
-            <div>
-              <label>Regex América Latina / Brasil</label>
-              <input id="diag-re-latam" type="text" />
-            </div>
-            <button id="btn-run-diag">Rodar diag</button>
-          </div>
-
-          <!-- Barra de progresso + cancelamento do diagnóstico -->
-          <div id="diag-progress" class="progress-overlay hidden">
-            <div class="progress-box">
-              <span id="diag-progress-label" class="progress-label">
-                Preparando diagnóstico…
-              </span>
-              <progress id="diag-progress-bar"></progress>
-              <button
-                id="btn-cancel-diag"
-                class="danger"
-                data-keep-enabled="true"
-              >
-                Cancelar diagnóstico
-              </button>
-            </div>
-          </div>
-
-          <div id="diag-results"></div>
-        </section>
-
-        <section id="groups-container"></section>
-
-        <section id="errors-section" class="hidden">
-          <h2>⚠️ Erros desta execução</h2>
-          <div id="errors-list"></div>
-        </section>
+        </div>
       </section>
 
-        <section id="tab-perplexity" class="tab-panel">
+      <!-- ABA: PERPLEXITY (seção irmã da de coleta) -->
+      <section id="tab-perplexity" class="tab-panel">
+        <div class="collect-layout">
+          <!-- Sidebar idêntica -->
+          <aside class="collect-sidebar">
+            <div class="qs-logo">
+              <img src="/static/logo2.png" alt="QUINTESSA" />
+            </div>
+
+            <nav class="side-actions">
+              <button class="side-cta" onclick="location.hash='#manage'">VOLTAR À COLETA</button>
+              <button class="side-cta" onclick="location.hash='#perplexity'">PESQUISA NO PERPLEXITY</button>
+              <a class="side-cta" href="https://docs.google.com/spreadsheets/" target="_blank" rel="noopener">IR PARA PLANILHA ATUAL</a>
+            </nav>
+          </aside>
+
+          <!-- Conteúdo Perplexity com o mesmo padding/tema -->
+          <div class="collect-content">
         <h2>🔎 Busca inteligente com Perplexity</h2>
         <p class="caption">
-            Faça perguntas sobre editais e receba um resumo com fontes. Resultados
-            também são gravados em uma aba da planilha.
+          Faça perguntas sobre editais e receba um resumo com fontes. Resultados também são gravados em uma aba da planilha.
         </p>
 
         <!-- Tabela de preços por modelo -->
         <section class="pplx-cost-panel">
-            <h3>💰 Estimativa de custo</h3>
-            <p class="caption">
-            Ajuste abaixo os valores de referência de cada modelo (US$ por 1M tokens
-            de entrada e saída). A estimativa usa o modelo selecionado no painel à
-            direita.
-            </p>
-            <table class="pplx-cost-table">
+          <h3>💰 Estimativa de custo</h3>
+          <span class="usd-badge">
+            COTAÇÃO DO DÓLAR HOJE: R$ <b id="dolar-value">5.20</b>
+          </span>
+          <p class="caption">
+            Ajuste abaixo os valores de referência de cada modelo (US$ por 1M tokens de entrada e saída).
+            A estimativa usa o modelo selecionado no painel à direita.
+          </p>
+          <table class="pplx-cost-table">
             <thead>
-                <tr>
+              <tr>
                 <th>Modelo</th>
                 <th>Input (US$/1M)</th>
                 <th>Output (US$/1M)</th>
-                </tr>
+              </tr>
             </thead>
             <tbody>
-                <tr data-model="sonar">
+              <tr data-model="sonar">
                 <td>Sonar</td>
-                <td>
-                    <input
-                    type="number"
-                    id="cost-in-sonar"
-                    min="0"
-                    step="0.1"
-                    value="1"
-                    />
-                </td>
-                <td>
-                    <input
-                    type="number"
-                    id="cost-out-sonar"
-                    min="0"
-                    step="0.1"
-                    value="1"
-                    />
-                </td>
-                </tr>
-                <tr data-model="sonar-pro">
+                <td><input type="number" id="cost-in-sonar" min="0" step="0.1" value="1" /></td>
+                <td><input type="number" id="cost-out-sonar" min="0" step="0.1" value="1" /></td>
+              </tr>
+              <tr data-model="sonar-pro">
                 <td>Sonar Pro</td>
-                <td>
-                    <input
-                    type="number"
-                    id="cost-in-sonar-pro"
-                    min="0"
-                    step="0.1"
-                    value="3"
-                    />
-                </td>
-                <td>
-                    <input
-                    type="number"
-                    id="cost-out-sonar-pro"
-                    min="0"
-                    step="0.1"
-                    value="15"
-                    />
-                </td>
-                </tr>
-                <tr data-model="sonar-reasoning">
+                <td><input type="number" id="cost-in-sonar-pro" min="0" step="0.1" value="3" /></td>
+                <td><input type="number" id="cost-out-sonar-pro" min="0" step="0.1" value="15" /></td>
+              </tr>
+              <tr data-model="sonar-reasoning">
                 <td>Sonar Reasoning</td>
-                <td>
-                    <input
-                    type="number"
-                    id="cost-in-sonar-reasoning"
-                    min="0"
-                    step="0.1"
-                    value="1"
-                    />
-                </td>
-                <td>
-                    <input
-                    type="number"
-                    id="cost-out-sonar-reasoning"
-                    min="0"
-                    step="0.1"
-                    value="5"
-                    />
-                </td>
-                </tr>
-                <tr data-model="sonar-reasoning-pro">
+                <td><input type="number" id="cost-in-sonar-reasoning" min="0" step="0.1" value="1" /></td>
+                <td><input type="number" id="cost-out-sonar-reasoning" min="0" step="0.1" value="5" /></td>
+              </tr>
+              <tr data-model="sonar-reasoning-pro">
                 <td>Sonar Reasoning Pro</td>
-                <td>
-                    <input
-                    type="number"
-                    id="cost-in-sonar-reasoning-pro"
-                    min="0"
-                    step="0.1"
-                    value="2"
-                    />
-                </td>
-                <td>
-                    <input
-                    type="number"
-                    id="cost-out-sonar-reasoning-pro"
-                    min="0"
-                    step="0.1"
-                    value="8"
-                    />
-                </td>
-                </tr>
-                <tr data-model="sonar-deep-research">
+                <td><input type="number" id="cost-in-sonar-reasoning-pro" min="0" step="0.1" value="2" /></td>
+                <td><input type="number" id="cost-out-sonar-reasoning-pro" min="0" step="0.1" value="8" /></td>
+              </tr>
+              <tr data-model="sonar-deep-research">
                 <td>Sonar Deep Research</td>
-                <td>
-                    <input
-                    type="number"
-                    id="cost-in-sonar-deep-research"
-                    min="0"
-                    step="0.1"
-                    value="2"
-                    />
-                </td>
-                <td>
-                    <input
-                    type="number"
-                    id="cost-out-sonar-deep-research"
-                    min="0"
-                    step="0.1"
-                    value="8"
-                    />
-                </td>
-                </tr>
+                <td><input type="number" id="cost-in-sonar-deep-research" min="0" step="0.1" value="2" /></td>
+                <td><input type="number" id="cost-out-sonar-deep-research" min="0" step="0.1" value="8" /></td>
+              </tr>
             </tbody>
-            </table>
-
-            <div class="pplx-cost-footer">
+          </table>
+          <div class="pplx-cost-footer">
             <div>
-                <label>Cotação USD → BRL</label>
-                <input
-                type="number"
-                id="usd-brl"
-                step="0.1"
-                min="1"
-                value="5.2"
-                />
+              <label>Cotação USD → BRL</label>
+              <input type="number" id="usd-brl" step="0.1" min="1" value="5.2" />
             </div>
-            </div>
+          </div>
         </section>
 
         <section class="pplx-main">
-            <!-- ESQUERDA: Modelos + Link do edital + Prompt final -->
-            <div class="pplx-left">
+          <!-- ESQUERDA: Modelos + Link do edital + Prompt final -->
+          <div class="pplx-left">
             <h3>Prompt (Modelos)</h3>
 
             <label>Modelo de prompt</label>
             <select id="pplx-tpl">
-                <option value="listar">Listar oportunidades</option>
-                <option value="resumo">Resumo de edital</option>
-                <option value="comparar">Comparar chamadas</option>
+              <option value="listar">Listar oportunidades</option>
+              <option value="resumo">Resumo de edital</option>
+              <option value="comparar">Comparar chamadas</option>
             </select>
 
             <div class="pplx-tpl-grid">
-                <div>
+              <div>
                 <label>Tema</label>
                 <input type="text" id="pplx-tema" value="bioeconomia" />
-                </div>
-                <div>
+              </div>
+              <div>
                 <label>Região</label>
                 <input type="text" id="pplx-reg" value="Amazônia/LatAm" />
-                </div>
-                <div>
+              </div>
+              <div>
                 <label>Prazo mínimo (dias)</label>
-                <input
-                    type="number"
-                    id="pplx-dias"
-                    value="21"
-                    min="0"
-                    max="365"
-                />
-                </div>
+                <input type="number" id="pplx-dias" value="21" min="0" max="365" />
+              </div>
             </div>
 
             <div class="pplx-link-row">
-                <div class="pplx-link-main">
+              <div class="pplx-link-main">
                 <label>Link do edital (PDF/DOC ou página)</label>
-                <input
-                    type="text"
-                    id="pplx-edital-link"
-                    placeholder="https://..."
-                />
-                </div>
-                <div class="pplx-link-actions">
-                <button id="pplx-count-tokens" type="button">
-                    📊 Estimar tokens do link
-                </button>
+                <input type="text" id="pplx-edital-link" placeholder="https://..." />
+              </div>
+              <div class="pplx-link-actions">
+                <button id="pplx-count-tokens" type="button">📊 Estimar tokens do link</button>
                 <span id="pplx-link-tokens" class="caption">—</span>
-                </div>
+              </div>
             </div>
 
             <label>Prompt final enviado para a Perplexity</label>
             <textarea id="pplx-tpl-output" rows="8" readonly></textarea>
             <p class="caption">
-                O prompt acima é o texto que será enviado para a API, combinando o
-                modelo escolhido, tema, região, prazo e link do edital.
+              O prompt acima é o texto que será enviado para a API, combinando o modelo escolhido, tema, região, prazo e link do edital.
             </p>
-            </div>
+          </div>
 
-            <!-- DIREITA: modelo, temperatura, max_tokens, salvar, métricas -->
-            <div class="pplx-right">
+          <!-- DIREITA: modelo, temperatura, max_tokens, salvar, métricas -->
+          <div class="pplx-right">
             <label for="pplx-model">Modelo</label>
             <select id="pplx-model">
-                <option value="sonar">Sonar – rápido e barato (geral)</option>
-                <option value="sonar-pro">
-                Sonar Pro – análise mais profunda
-                </option>
-                <option value="sonar-reasoning">
-                Sonar Reasoning – raciocínio passo a passo
-                </option>
-                <option value="sonar-reasoning-pro">
-                Sonar Reasoning Pro – raciocínio avançado
-                </option>
-                <option value="sonar-deep-research">
-                Sonar Deep Research – pesquisa longa e detalhada
-                </option>
+              <option value="sonar">Sonar – rápido e barato (geral)</option>
+              <option value="sonar-pro">Sonar Pro – análise mais profunda</option>
+              <option value="sonar-reasoning">Sonar Reasoning – raciocínio passo a passo</option>
+              <option value="sonar-reasoning-pro">Sonar Reasoning Pro – raciocínio avançado</option>
+              <option value="sonar-deep-research">Sonar Deep Research – pesquisa longa e detalhada</option>
             </select>
 
             <label for="pplx-temp">Temperatura</label>
             <div class="pplx-temp-row">
-                <input
-                type="range"
-                id="pplx-temp"
-                min="0"
-                max="1"
-                step="0.05"
-                value="0.2"
-                />
-                <span id="pplx-temp-value">0.2</span>
+              <input type="range" id="pplx-temp" min="0" max="1" step="0.05" value="0.2" />
+              <span id="pplx-temp-value">0.2</span>
             </div>
             <p id="pplx-temp-help" class="caption">
-                Valores baixos (0–0,3) deixam a resposta mais previsível e focada no
-                edital. Valores altos (0,7–1,0) deixam a resposta mais criativa e
-                variada, podendo “viajar” mais.
+              Valores baixos (0–0,3) deixam a resposta mais previsível e focada no edital. Valores altos (0,7–1,0) deixam a resposta mais criativa e variada, podendo “viajar” mais.
             </p>
 
             <label for="pplx-max">Saída esperada (tokens)</label>
-            <input
-                type="number"
-                id="pplx-max"
-                min="256"
-                max="4096"
-                step="64"
-                value="900"
-            />
+            <input type="number" id="pplx-max" min="256" max="4096" step="64" value="900" />
             <p class="caption">
-                Esse valor é usado tanto para limitar o tamanho máximo da resposta da
-                API quanto para estimar o custo aproximado.
+              Esse valor é usado tanto para limitar o tamanho máximo da resposta da API quanto para estimar o custo aproximado.
             </p>
 
             <label>
-                <input type="checkbox" id="pplx-save" checked />
-                Gravar na planilha (aba "perplexity")
+              <input type="checkbox" id="pplx-save" checked />
+              Gravar na planilha (aba "perplexity")
             </label>
 
             <div class="pplx-metrics">
-                <div>
+              <div>
                 <strong>Tokens de entrada (aprox.)</strong>
                 <div id="metric-tokens-in">0</div>
-                </div>
-                <div>
+              </div>
+              <div>
                 <strong>Custo estimado (US$)</strong>
                 <div id="metric-cost-usd">0.0000</div>
-                </div>
-                <div>
+              </div>
+              <div>
                 <strong>Custo estimado (R$)</strong>
                 <div id="metric-cost-brl">0.0000</div>
-                </div>
+              </div>
             </div>
 
-            <button id="btn-pplx-run" class="primary">
-                🔎 Rodar pesquisa agora
-            </button>
-            </div>
+            <button id="btn-pplx-run" class="primary">🔎 Rodar pesquisa agora</button>
+          </div>
         </section>
 
         <section id="pplx-output">
-            <h3>Resumo</h3>
-            <div id="pplx-summary"></div>
-            <h3>Fontes citadas</h3>
-            <ul id="pplx-links"></ul>
+          <h3>Resumo</h3>
+          <div id="pplx-summary"></div>
+
+          <h3>Fontes citadas</h3>
+          <ul id="pplx-links"></ul>
         </section>
 
         <section id="pplx-errors" class="hidden">
-            <h3>⚠️ Erros</h3>
-            <div id="pplx-errors-list"></div>
+          <h3>⚠️ Erros</h3>
+          <div id="pplx-errors-list"></div>
         </section>
-        </section>
-
-
-
+          </div> <!-- /collect-content -->
+        </div>   <!-- /collect-layout -->
+      </section>
     </main>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=qs-roxo-2"></script>
   </body>
 </html>

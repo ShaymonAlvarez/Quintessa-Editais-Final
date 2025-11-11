@@ -16,9 +16,47 @@ const state = {
   minDaysPreset: "10 dias",
   usdBrl: 5.2,
   linkTokens: 0, // tokens estimados do conteúdo do link do edital
+  filterDate: null,   // yyyy-mm-dd (string) ou null
+  valueMax: null,     // número em BRL ou null  
 };
 
 // ---------- Helpers One-Click (presets salvos em localStorage) ----------
+
+// Utilitário global para parse de datas YYYY-MM-DD
+function parseISO(d){
+  if (!d) return null;
+  const [y,m,day] = d.split("-").map(Number);
+  if(!y||!m||!day) return null;
+  return new Date(y, m-1, day);
+}
+
+// FILTRO GLOBAL (usa somente state.filterDate / state.valueMax)
+// Regras:
+// - Se não houver data/valor no item, NÃO exclui.
+// - Só oculta quando houver dado E ele violar o limite.
+function filterVisibleItems(){
+  const allCards = document.querySelectorAll(".item-card");
+  const limitDate = state.filterDate ? parseISO(state.filterDate) : null;
+  const limitValue = Number.isFinite(state.valueMax) ? state.valueMax : null;
+  allCards.forEach(card=>{
+    let ok = true;
+    if (ok && limitDate){
+      const dl = card.dataset.deadline || "";
+      if (dl){ // só filtra se o item tiver data
+        const d = parseISO(dl.slice(0,10));
+        if (d && d < limitDate) ok = false;
+      }
+    }
+    if (ok && limitValue !== null){
+      const amtStr = card.dataset.amount || "";
+      if (amtStr !== ""){
+        const amt = Number(amtStr);
+        if (Number.isFinite(amt) && amt > limitValue) ok = false;
+      }
+    }
+    card.style.display = ok ? "" : "none";
+  });
+}
 
 const ONECLICK_KEY = "pplx_oneclick_presets_v1";
 
@@ -338,10 +376,28 @@ async function loadGroupItems(group, statusFilter) {
     }
 
     bodyDiv.innerHTML = "";
+    // Helpers de filtro
+    const parseBrl = (v) => {
+      if (v == null) return NaN;
+      if (typeof v === "number") return v;
+      const s = String(v).replace(/\./g,"").replace(/,/g,".").replace(/[^\d.]/g,"");
+      const n = parseFloat(s);
+      return isNaN(n) ? NaN : n;
+    };
+    const extractValue = (it) => {
+      // tenta vários campos comuns
+      const cand =
+        it.value_brl ?? it.value ?? it.amount_brl ?? it.amount ?? null;
+      const n = parseBrl(cand);
+      return isNaN(n) ? null : n;
+    };
+
     for (const src of sources) {
       const sDiv = document.createElement("div");
       sDiv.className = "source-card";
-      const count = (src.items || []).length;
+      const rawItems = src.items || [];
+      const filtered = rawItems; // NÃO filtra aqui; só na UI
+      const count = filtered.length;
       sDiv.innerHTML = `
         <div class="source-header">
           <strong>${src.source}</strong> — ${count} itens
@@ -349,12 +405,24 @@ async function loadGroupItems(group, statusFilter) {
         <div class="source-body"></div>
       `;
       const sb = sDiv.querySelector(".source-body");
-      for (const it of src.items) {
+      for (const it of filtered) {
         const card = document.createElement("div");
         card.className = "item-card";
         card.dataset.uid = it.uid;
+        // guarda dados para os filtros (se vierem do backend)
+        if (it.deadline_iso) card.dataset.deadline = String(it.deadline_iso).slice(0,10);
+        // tenta mapear possíveis campos de valor (use o que você realmente tiver)
+        const amt = it.value_brl ?? it.amount_brl ?? it.value ?? null;
+        if (amt !== null && amt !== undefined) card.dataset.amount = String(amt);
 
-        const bg = state.statusBg[it.status] || "#111111";
+        // Garantia: nunca deixar o card com fundo preto/escuro por causa do statusBg
+        // (corrige o item 4.5 do seu pedido)
+        const cand = (state.statusBg[it.status] || "").toLowerCase();
+        const isDark =
+          cand === "#000" || cand === "#000000" ||
+          cand === "#111" || cand === "#111111" ||
+          cand === "black" || cand === "rgb(0,0,0)";
+        const bg = (!cand || isDark) ? "#f8f9ff" : cand;
         card.style.backgroundColor = bg;
 
         const seenChecked =
@@ -430,7 +498,13 @@ async function loadGroupItems(group, statusFilter) {
         if (statusSelect) {
           statusSelect.addEventListener("change", async () => {
             const newStatus = statusSelect.value;
-            const newBg = state.statusBg[newStatus] || "#111111";
+            // Reaplica a mesma regra anti-preto quando o status muda
+            const cand2 = (state.statusBg[newStatus] || "").toLowerCase();
+            const isDark2 =
+              cand2 === "#000" || cand2 === "#000000" ||
+              cand2 === "#111" || cand2 === "#111111" ||
+              cand2 === "black" || cand2 === "rgb(0,0,0)";
+            const newBg = (!cand2 || isDark2) ? "#f8f9ff" : cand2;
             card.style.backgroundColor = newBg;
 
             const notesEl = card.querySelector(".field-notes");
@@ -458,6 +532,9 @@ async function loadGroupItems(group, statusFilter) {
       }
       bodyDiv.appendChild(sDiv);
     }
+    // aplica filtros atuais nos itens recém-renderizados
+    filterVisibleItems();
+
   } catch (e) {
     bodyDiv.innerHTML = `<span style="color:#f88">Erro ao carregar itens: ${e}</span>`;
   }
@@ -1102,8 +1179,29 @@ function activateTab(tabName){
   document.querySelectorAll(".tab-panel").forEach((p)=>{
     p.classList.toggle("active", p.id === `tab-${tabName}`);
   });
+  // quando muda de aba, ajusta o botão da sidebar conforme a tela atual
+  updateSidebarForTab(tabName);
 }
 
+// --- NOVO: quando estiver na aba Perplexity, o botão da esquerda vira "PÁGINA INICIAL"
+function updateSidebarForTab(tabName){
+  // dentro da aba Perplexity, o 2º botão da sidebar é o "PESQUISA NO PERPLEXITY"
+  const btn = document.querySelector('#tab-perplexity .side-actions .side-cta:nth-child(2)');
+  if (!btn) return;
+  if (!btn.dataset.originalLabel) btn.dataset.originalLabel = btn.textContent.trim();
+
+  // limpa handlers antigos (clonando)
+  const clone = btn.cloneNode(true);
+  btn.parentNode.replaceChild(clone, btn);
+
+  if (tabName === "perplexity") {
+    clone.textContent = "PÁGINA INICIAL";
+    clone.onclick = () => { window.location.href = "home.html"; };
+  } else {
+    clone.textContent = clone.dataset.originalLabel || "PESQUISA NO PERPLEXITY";
+    clone.onclick = () => { location.hash = "#perplexity"; };
+  }
+}
 
 function setupTabs(){
   const buttons = document.querySelectorAll(".tab-btn");
@@ -1114,23 +1212,48 @@ function setupTabs(){
       history.replaceState(null, "", `#${btn.dataset.tab}`);
     });
   });
+  // Responde a alterações do hash vindas de botões externos/links
+  window.addEventListener("hashchange", () => {
+    const hash = (location.hash || "").replace("#","");
+    if (hash === "perplexity" || hash === "manage") activateTab(hash);
+  });  
 }
 
 // ---------- Eventos iniciais ----------
 
 window.addEventListener("DOMContentLoaded", async () => {
+
+  document.body.classList.add("collect-theme");
   setupTabs();
 
-  // Se veio de /app#perplexity ou /app#manage, abre a aba certa
+  // Abre a aba correta se vier via hash
   const hash = (window.location.hash || "").replace("#","");
   if (hash === "perplexity" || hash === "manage") {
     activateTab(hash);
   }
+  else {
+    // Garante manage como default visual
+    activateTab("manage");
+  }
 
-  // Eventos de config
+  // sincroniza o valor exibido "COTAÇÃO DO DÓLAR HOJE" no topo da tela do Perplexity
+  (function syncDolarTag(){
+    const tag = document.getElementById("dolar-value");
+    const usd = document.getElementById("usd-brl");
+    if (!tag || !usd) return;
+    const set = () => {
+      const v = parseFloat(usd.value || "5.2");
+      if (!isNaN(v)) tag.textContent = v.toFixed(2);
+    };
+    set();
+    usd.addEventListener("input", set);
+  })();
+
+  // ====== ELEMENTOS (existentes + novos) ======
   const presetSelect = document.getElementById("preset-min-days");
   const customInput = document.getElementById("custom-min-days");
   const btnSaveMinDays = document.getElementById("btn-save-min-days");
+
   const btnRunCollect = document.getElementById("btn-run-collect");
   const btnRefreshItems = document.getElementById("btn-refresh-items");
   const btnClearAll = document.getElementById("btn-clear-all");
@@ -1138,10 +1261,19 @@ window.addEventListener("DOMContentLoaded", async () => {
   const btnRunDiag = document.getElementById("btn-run-diag");
   const btnCancelCollect = document.getElementById("btn-cancel-collect");
   const btnCancelDiag = document.getElementById("btn-cancel-diag");
+
+  // NOVOS – chips de deadline + modal de valor
+  const deadlineChips = document.querySelectorAll(".chip-deadline");
+  const valueChip = document.getElementById("chip-valor");
+  const valueModal = document.getElementById("value-modal");
+  const valueMax = document.getElementById("value-max");
+  const valueApply = document.getElementById("value-apply");
+  const valueCancel = document.getElementById("value-cancel");
+
+  // Perplexity
   const pplxTemp = document.getElementById("pplx-temp");
   const pplxTempValue = document.getElementById("pplx-temp-value");
   const pplxRunBtn = document.getElementById("btn-pplx-run");
-
   const pplxTpl = document.getElementById("pplx-tpl");
   const pplxTema = document.getElementById("pplx-tema");
   const pplxReg = document.getElementById("pplx-reg");
@@ -1149,118 +1281,114 @@ window.addEventListener("DOMContentLoaded", async () => {
   const pplxLink = document.getElementById("pplx-edital-link");
   const pplxCountTokensBtn = document.getElementById("pplx-count-tokens");
   const pplxModelSelect = document.getElementById("pplx-model");
-
   const pplxHtmlCheckbox = document.getElementById("pplx-html-checkbox");
   const pplxHtmlHelp = document.getElementById("pplx-html-help");
   const pplxPages = document.getElementById("pplx-edital-pages");
+  const chipData = document.getElementById("chip-data");
+  const nativeDate = document.getElementById("filter-date");
 
+  // --- estado local de filtros ---
+  let filterDateISO = null;   // yyyy-mm-dd ou null
+  let valueMaxCache = 5000;   // já existia; mantemos aqui visível
 
-  if (pplxHtmlCheckbox && pplxHtmlHelp) {
-    pplxHtmlCheckbox.addEventListener("change", () => {
-      if (pplxHtmlCheckbox.checked) {
-        pplxHtmlHelp.classList.remove("hidden");
+    // Abre o seletor nativo ao clicar no chip
+  if (chipData && nativeDate){
+    chipData.addEventListener("click", () => {
+      // toggle: se já ativo, limpa; senão abre o datepicker
+      if (chipData.classList.contains("active")) {
+        chipData.classList.remove("active");
+        chipData.innerHTML = `Data: dd/mm/aaaa <span class="caret">▾</span>`;
+        state.filterDate = null;
+        filterDateISO = null;
+        filterVisibleItems();
+        // também zera o input nativo para não ficar valor fantasma
+        nativeDate.value = "";
+        return;
+      }
+      if (nativeDate.showPicker) nativeDate.showPicker();
+      else nativeDate.focus();
+    });
+    nativeDate.addEventListener("change", () => {
+      const v = nativeDate.value; // yyyy-mm-dd
+      if (v){
+        const [y,m,d] = v.split("-");
+        chipData.innerHTML = `Data: ${d}/${m}/${y} <span class="caret">▾</span>`;
+        chipData.classList.add("active");
+        state.filterDate = v;
+        filterDateISO = v;
+        filterVisibleItems();
       } else {
-        pplxHtmlHelp.classList.add("hidden");
+        // limpou a data
+        chipData.innerHTML = `Data: dd/mm/aaaa <span class="caret">▾</span>`;
+        chipData.classList.remove("active");
+        filterDateISO = null;
+        filterVisibleItems();
       }
     });
   }
 
+  // ====== Interações já existentes ======
+  if (pplxHtmlCheckbox && pplxHtmlHelp) {
+    pplxHtmlCheckbox.addEventListener("change", () => {
+      if (pplxHtmlCheckbox.checked) pplxHtmlHelp.classList.remove("hidden");
+      else pplxHtmlHelp.classList.add("hidden");
+    });
+  }
   if (pplxPages) {
     pplxPages.addEventListener("input", () => {
       const { prompt } = getPplxPromptAndModeLabel();
       updatePplxMetrics(prompt);
     });
   }
-
   if (presetSelect && customInput) {
     presetSelect.addEventListener("change", () => {
-      if (presetSelect.value === "custom") {
-        customInput.classList.remove("hidden");
-      } else {
-        customInput.classList.add("hidden");
-      }
+      if (presetSelect.value === "custom") customInput.classList.remove("hidden");
+      else customInput.classList.add("hidden");
     });
   }
+  if (btnSaveMinDays) btnSaveMinDays.addEventListener("click", handleSaveMinDays);
+  if (btnRunCollect) btnRunCollect.addEventListener("click", handleRunCollect);
+  if (btnRefreshItems) btnRefreshItems.addEventListener("click", handleRefreshItems);
+  if (btnClearAll) btnClearAll.addEventListener("click", handleClearAll);
+  if (btnDiag) btnDiag.addEventListener("click", toggleDiagSection);
+  if (btnRunDiag) btnRunDiag.addEventListener("click", handleRunDiag);
 
-  if (btnSaveMinDays) {
-    btnSaveMinDays.addEventListener("click", handleSaveMinDays);
-  }
-  if (btnRunCollect) {
-    btnRunCollect.addEventListener("click", handleRunCollect);
-  }
-  if (btnRefreshItems) {
-    btnRefreshItems.addEventListener("click", handleRefreshItems);
-  }
-  if (btnClearAll) {
-    btnClearAll.addEventListener("click", handleClearAll);
-  }
-  if (btnDiag) {
-    btnDiag.addEventListener("click", toggleDiagSection);
-  }
-  if (btnRunDiag) {
-    btnRunDiag.addEventListener("click", handleRunDiag);
-  }
   if (btnCancelCollect) {
     btnCancelCollect.addEventListener("click", () => {
       collectCancelRequested = true;
       const label = document.getElementById("collect-progress-label");
-      if (label) {
-        label.textContent =
-          "Cancelando… aguardando finalizar o grupo atual.";
-      }
+      if (label) label.textContent = "Cancelando… aguardando finalizar o grupo atual.";
     });
   }
   if (btnCancelDiag) {
     btnCancelDiag.addEventListener("click", () => {
-      if (diagAbortController) {
-        diagAbortController.abort();
-      }
+      if (diagAbortController) diagAbortController.abort();
       const label = document.getElementById("diag-progress-label");
-      if (label) {
-        label.textContent = "Cancelando diagnóstico…";
-      }
+      if (label) label.textContent = "Cancelando diagnóstico…";
     });
   }
-
   if (pplxTemp && pplxTempValue) {
     pplxTemp.addEventListener("input", () => {
       pplxTempValue.innerText = pplxTemp.value;
     });
   }
-
-
-  if (pplxRunBtn) {
-    pplxRunBtn.addEventListener("click", handleRunPerplexity);
-  }
-
+  if (pplxRunBtn) pplxRunBtn.addEventListener("click", handleRunPerplexity);
   [pplxTpl, pplxTema, pplxReg, pplxDias, pplxLink].forEach((el) => {
-    if (el) {
-      el.addEventListener("input", () => {
-        recomputeTemplatePrompt();
-      });
-    }
+    if (el) el.addEventListener("input", () => recomputeTemplatePrompt());
   });
-
-  if (pplxCountTokensBtn) {
-    pplxCountTokensBtn.addEventListener("click", handleCountTokensFromLink);
-  }
-
+  if (pplxCountTokensBtn) pplxCountTokensBtn.addEventListener("click", handleCountTokensFromLink);
   if (pplxModelSelect) {
     pplxModelSelect.addEventListener("change", () => {
       const { prompt } = getPplxPromptAndModeLabel();
       updatePplxMetrics(prompt, state.linkTokens);
     });
   }
-
-  document
-    .querySelectorAll(".pplx-cost-table input[type='number']")
-    .forEach((inp) => {
-      inp.addEventListener("input", () => {
-        const { prompt } = getPplxPromptAndModeLabel();
-        updatePplxMetrics(prompt, state.linkTokens);
-      });
+  document.querySelectorAll(".pplx-cost-table input[type='number']").forEach((inp) => {
+    inp.addEventListener("input", () => {
+      const { prompt } = getPplxPromptAndModeLabel();
+      updatePplxMetrics(prompt, state.linkTokens);
     });
-
+  });
   const usdInput = document.getElementById("usd-brl");
   if (usdInput) {
     usdInput.addEventListener("input", () => {
@@ -1269,15 +1397,82 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // Inicializa o prompt/modelo Perplexity
+  // ====== NOVO: chips "Encerramento em" (não muda backend; apenas altera state.minDays) ======
+  function setDeadlinePreset(days){
+    state.minDays = parseInt(days, 10) || state.minDays;
+    // Feedback visual
+    deadlineChips.forEach(ch => ch.classList.toggle("active", ch.dataset.deadline === String(days)));
+  }
+  deadlineChips.forEach((ch) => {
+    ch.addEventListener("click", () => setDeadlinePreset(ch.dataset.deadline));
+  });
+
+  // ====== NOVO: mini modal do filtro de VALOR (apenas UI) ======
+  function openValueModal(){
+    valueMax.value = valueMaxCache;
+    valueModal.classList.remove("hidden");
+  }
+  function closeValueModal(){ valueModal.classList.add("hidden"); }
+
+  if (valueChip){
+    valueChip.addEventListener("click", () => {
+      // toggle: se ativo, desliga o filtro; senão abre o modal
+      if (valueChip.classList.contains("active")) {
+        valueChip.classList.remove("active");
+        state.valueMax = null;
+        valueMaxCache = null;
+        valueChip.innerHTML = `Valor: de 0 até 5mil reais <span class="caret">▾</span>`;
+        filterVisibleItems();
+      } else {
+        openValueModal();
+      }
+    });
+  }
+  if (valueCancel){
+    valueCancel.addEventListener("click", closeValueModal);
+  }
+
+    // marca o preset inicial quando a config chega
+  const markInitialDeadline = () => {
+    const label = (state.minDaysPreset || "").toString();
+    let days = parseInt(label, 10);
+    if (!days || isNaN(days)) days = state.minDays || 10;
+    setDeadlinePreset(days);
+  };
+
+
+
+  if (valueApply){
+    valueApply.addEventListener("click", () => {
+      const v = parseInt(valueMax.value || "0", 10);
+      if (!isNaN(v) && v >= 0){
+        valueMaxCache = v;
+        valueChip.innerHTML = `Valor: até R$ ${v.toLocaleString("pt-BR")} <span class="caret">▾</span>`;
+        state.valueMax = v;
+        valueChip.classList.add("active");
+        // Re-render com filtro aplicado
+        filterVisibleItems();
+      }
+      closeValueModal();
+    });
+  }
+  // Fecha modal ao clicar fora
+  if (valueModal){
+    valueModal.addEventListener("click", (e) => {
+      if (e.target === valueModal) closeValueModal();
+    });
+  }
+
+  // Inicializa prompt/modelo Perplexity
   recomputeTemplatePrompt();
 
-  // Carrega config inicial do backend
+  // Carrega config inicial do backend e popula grupos/itens
   try {
     await loadConfig();
   } catch (e) {
     alert("Erro ao carregar configuração inicial: " + e);
   }
+  markInitialDeadline();
 });
 
 // Toggle simples da seção de diagnóstico
