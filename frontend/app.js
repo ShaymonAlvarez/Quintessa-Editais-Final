@@ -1095,20 +1095,23 @@ async function handleRunPerplexity() {
 }
 
 // ---------- Tabs ----------
+function activateTab(tabName){
+  document.querySelectorAll(".tab-btn").forEach((b)=>{
+    b.classList.toggle("active", b.dataset.tab === tabName);
+  });
+  document.querySelectorAll(".tab-panel").forEach((p)=>{
+    p.classList.toggle("active", p.id === `tab-${tabName}`);
+  });
+}
 
-function setupTabs() {
+
+function setupTabs(){
   const buttons = document.querySelectorAll(".tab-btn");
   buttons.forEach((btn) => {
     btn.addEventListener("click", () => {
-      const tab = btn.dataset.tab;
-      document
-        .querySelectorAll(".tab-btn")
-        .forEach((b) => b.classList.remove("active"));
-      document
-        .querySelectorAll(".tab-panel")
-        .forEach((p) => p.classList.remove("active"));
-      btn.classList.add("active");
-      document.getElementById(`tab-${tab}`).classList.add("active");
+      activateTab(btn.dataset.tab);
+      // atualiza o hash para permitir deep-link
+      history.replaceState(null, "", `#${btn.dataset.tab}`);
     });
   });
 }
@@ -1117,6 +1120,12 @@ function setupTabs() {
 
 window.addEventListener("DOMContentLoaded", async () => {
   setupTabs();
+
+  // Se veio de /app#perplexity ou /app#manage, abre a aba certa
+  const hash = (window.location.hash || "").replace("#","");
+  if (hash === "perplexity" || hash === "manage") {
+    activateTab(hash);
+  }
 
   // Eventos de config
   const presetSelect = document.getElementById("preset-min-days");

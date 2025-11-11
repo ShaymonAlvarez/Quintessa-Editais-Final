@@ -99,20 +99,23 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = ROOT_DIR / "frontend"
 
 # Servir arquivos estáticos (CSS/JS) em /static
-app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
-
+app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="static")
 
 @app.get("/", response_class=HTMLResponse)
-async def index():
-    """Serve o index.html do frontend."""
+async def home():
+    """Página inicial (landing)."""
+    home_path = FRONTEND_DIR / "home.html"
+    if not home_path.exists():
+        raise HTTPException(status_code=500, detail="home.html não encontrado.")
+    return home_path.read_text(encoding="utf-8")
+
+@app.get("/app", response_class=HTMLResponse)
+async def app_shell():
+    """App completo com abas (arquivo index.html atual)."""
     index_path = FRONTEND_DIR / "index.html"
     if not index_path.exists():
-        raise HTTPException(
-            status_code=500,
-            detail="index.html não encontrado. Verifique a estrutura de pastas.",
-        )
+        raise HTTPException(status_code=500, detail="index.html não encontrado.")
     return index_path.read_text(encoding="utf-8")
-
 
 # ---------- ENDPOINTS DE CONFIG ----------
 
