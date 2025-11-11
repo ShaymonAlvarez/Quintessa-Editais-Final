@@ -46,9 +46,9 @@ STATUS_CHOICES = ["pendente", "verificando", "submetido", "não submetido"]
 # Cores de fundo por status (para o frontend)
 STATUS_BG = {
     "pendente": "#111111",
-    "verificando": "#001a66",
-    "submetido": "#0b3d1b",
-    "não submetido": "#4a0b0f",
+    "verificando": "#6d82c2",
+    "submetido": "#599e6f",
+    "não submetido": "#a77578",
 }
 
 # Cores de texto por status (se o frontend quiser usar)

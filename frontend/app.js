@@ -1185,21 +1185,42 @@ function activateTab(tabName){
 
 // --- NOVO: quando estiver na aba Perplexity, o botão da esquerda vira "PÁGINA INICIAL"
 function updateSidebarForTab(tabName){
-  // dentro da aba Perplexity, o 2º botão da sidebar é o "PESQUISA NO PERPLEXITY"
-  const btn = document.querySelector('#tab-perplexity .side-actions .side-cta:nth-child(2)');
-  if (!btn) return;
-  if (!btn.dataset.originalLabel) btn.dataset.originalLabel = btn.textContent.trim();
+  // botões com data-perplexity-nav nas DUAS sidebars
+  const btnManage   = document.querySelector('#tab-manage .collect-sidebar [data-perplexity-nav]');
+  const btnPplx     = document.querySelector('#tab-perplexity .collect-sidebar [data-perplexity-nav]');
 
-  // limpa handlers antigos (clonando)
-  const clone = btn.cloneNode(true);
-  btn.parentNode.replaceChild(clone, btn);
+  // helper para limpar e aplicar handler
+  const resetBtn = (el) => {
+    if (!el) return el;
+    const clone = el.cloneNode(true);
+    el.parentNode.replaceChild(clone, el);
+    return clone;
+  };
 
-  if (tabName === "perplexity") {
-    clone.textContent = "PÁGINA INICIAL";
-    clone.onclick = () => { window.location.href = "home.html"; };
-  } else {
-    clone.textContent = clone.dataset.originalLabel || "PESQUISA NO PERPLEXITY";
-    clone.onclick = () => { location.hash = "#perplexity"; };
+  // estado: NA ABA PERPLEXITY -> botão vira "PÁGINA INICIAL" e leva para "/"
+  if (tabName === 'perplexity' && btnPplx){
+    const b = resetBtn(btnPplx);
+    b.textContent = 'PÁGINA INICIAL';
+    b.addEventListener('click', () => { window.location.href = '/'; });
+  }
+  // fora da aba Perplexity -> ambos mostram "PESQUISA NO PERPLEXITY" e abrem a aba
+  if (tabName !== 'perplexity'){
+    if (btnManage){
+      const b1 = resetBtn(btnManage);
+      b1.textContent = 'PESQUISA NO PERPLEXITY';
+      b1.addEventListener('click', () => {
+        activateTab('perplexity');
+        history.replaceState(null, '', '#perplexity');
+      });
+    }
+    if (btnPplx){
+      const b2 = resetBtn(btnPplx);
+      b2.textContent = 'PESQUISA NO PERPLEXITY';
+      b2.addEventListener('click', () => {
+        activateTab('perplexity');
+        history.replaceState(null, '', '#perplexity');
+      });
+    }
   }
 }
 

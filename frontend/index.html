@@ -32,7 +32,7 @@
 
             <nav class="side-actions">
               <button class="side-cta" onclick="window.location.href='/'">PÁGINA INICIAL</button>
-              <button class="side-cta" onclick="location.hash='#perplexity'">PESQUISA NO PERPLEXITY</button>
+              <button class="side-cta" data-perplexity-nav onclick="location.hash='#perplexity'">PESQUISA NO PERPLEXITY</button>
               <a class="side-cta" href="https://docs.google.com/spreadsheets/" target="_blank" rel="noopener">IR PARA PLANILHA ATUAL</a>
             </nav>
           </aside>
@@ -162,7 +162,8 @@
 
             <nav class="side-actions">
               <button class="side-cta" onclick="location.hash='#manage'">VOLTAR À COLETA</button>
-              <button class="side-cta" onclick="location.hash='#perplexity'">PESQUISA NO PERPLEXITY</button>
+              <!-- mesmo seletor nas duas abas -->
+              <button class="side-cta" data-perplexity-nav onclick="location.hash='#perplexity'">PESQUISA NO PERPLEXITY</button>
               <a class="side-cta" href="https://docs.google.com/spreadsheets/" target="_blank" rel="noopener">IR PARA PLANILHA ATUAL</a>
             </nav>
           </aside>
