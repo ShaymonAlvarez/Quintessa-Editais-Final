@@ -2,7 +2,7 @@ from .common import normalize, scrape_deadline_from_page
 import requests
 from bs4 import BeautifulSoup
 
-PROVIDER = {"name":"Wellcome","group":"Filantropia"}
+PROVIDER = {"name":"Wellcome","group":"Fundações e Prêmios"}
 
 def fetch(regex, cfg):
     url = "https://wellcome.org/grant-funding/schemes"

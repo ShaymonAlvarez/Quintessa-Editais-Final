@@ -1,6 +1,6 @@
 from .common import list_links, scrape_deadline_from_page
 
-PROVIDER = {"name":"100+ Accelerator","group":"Filantropia"}
+PROVIDER = {"name":"100+ Accelerator","group":"Corporativo / Aceleradoras"}
 
 def fetch(regex, cfg):
     url = "https://www.100accelerator.com"

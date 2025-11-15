@@ -20,6 +20,40 @@ const state = {
   valueMax: null,     // número em BRL ou null  
 };
 
+// NOVO: Busca a cotação atual do dólar (USD-BRL)
+async function fetchDollarRate() {
+  try {
+    // API pública e gratuita para cotação
+    const resp = await fetch('https://economia.awesomeapi.com.br/last/USD-BRL');
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    // Usamos o 'bid' (preço de compra)
+    const rate = data?.USDBRL?.bid; 
+    if (!rate) return null;
+    
+    const rateFloat = parseFloat(rate);
+    return isNaN(rateFloat) ? null : rateFloat;
+  } catch (e) {
+    console.warn("Erro ao buscar cotação do dólar:", e);
+    return null;
+  }
+}
+
+// NOVO: Atualiza o state e o badge na tela com a nova cotação
+function updateDollarUI(rate) {
+  if (!rate || rate <= 0) return; // Não faz nada se a cotação falhar
+
+  // 1. Atualiza o state global (usado nos cálculos de custo)
+  state.usdBrl = rate;
+
+  // 2. Atualiza o badge no HTML (na aba Perplexity)
+  const badge = document.getElementById("dolar-value");
+  if (badge) {
+    // Formata para R$ 5.23 (exemplo)
+    badge.textContent = rate.toFixed(2);
+  }
+}
+
 // ---------- Helpers One-Click (presets salvos em localStorage) ----------
 
 // Utilitário global para parse de datas YYYY-MM-DD
@@ -73,10 +107,18 @@ function loadOneClickPresets() {
           prompt: `Editais internacionais para aceleradoras na Amazônia com prazo mínimo de ${d} dias. Liste oportunidades relevantes, com links oficiais.`,
         },
         {
-          id: "phil",
-          label: `Filantropia global para clima & biodiversidade (≥ ${d} dias)`,
-          prompt: `Filantropia global para clima & biodiversidade com prazo mínimo de ${d} dias. Liste oportunidades relevantes, com links oficiais.`,
+          id: "funda",
+          label: `Fundações e Prêmios global para clima & biodiversidade (≥ ${d} dias)`,
+          prompt: `Fundações e Prêmios para clima & biodiversidade com prazo mínimo de ${d} dias. Liste oportunidades relevantes, com links oficiais.`,
         },
+
+        {
+          id: "corp",
+          label: `Corporativo/Aceleradoras global para clima & biodiversidade (≥ ${d} dias)`,
+          prompt: `Corporativo/Aceleradoras global para clima & biodiversidade com prazo mínimo de ${d} dias. Liste oportunidades relevantes, com links oficiais.`,
+        },
+
+
         {
           id: "gov",
           label: `Chamadas governamentais Brasil/LatAm focadas em inovação (≥ ${d} dias)`,
@@ -209,12 +251,12 @@ async function loadConfig() {
 function renderConfigUI() {
   const presetSelect = document.getElementById("preset-min-days");
   const customInput = document.getElementById("custom-min-days");
-  const usdInput = document.getElementById("usd-brl");
+  
+  // A cotação de USD foi removida da UI, então não tentamos mais achar o input
+  // const usdInput = document.getElementById("usd-brl");
+  // if (usdInput) usdInput.value = state.usdBrl.toString();
 
-  if (!presetSelect || !customInput || !usdInput) return;
-
-  // Ajusta cotação USD->BRL (Perplexity)
-  usdInput.value = state.usdBrl.toString();
+  if (!presetSelect || !customInput) return;
 
   // Descobre qual preset bate com o valor atual
   let presetLabel = state.minDaysPreset;
@@ -252,12 +294,17 @@ function renderGroupsCheckboxes() {
   if (!container) return;
   container.innerHTML = "";
   for (const g of state.availableGroups) {
+    // Não renderiza grupos relacionados a filantropia na UI de coleta
+    // (removido checkbox solicitado). Ignora nomes que contenham "filantrop".
+    if (/filantrop/i.test(g)) continue;
+    // Formata apenas para exibição: remove espaços antes/depois de '/'
+    const display = g.replace(/\s*\/\s*/g, '/');
     const id = `grp-${g.replace(/[^a-z0-9]/gi, "_")}`;
     const wrapper = document.createElement("div");
     wrapper.innerHTML = `
       <label>
         <input type="checkbox" id="${id}" data-group="${g}" checked />
-        ${g}
+        ${display}
       </label>
     `;
     container.appendChild(wrapper);
@@ -272,6 +319,11 @@ async function renderGroups() {
   container.innerHTML = "";
 
   for (const g of state.availableGroups) {
+    // Evita criar o cartão do grupo 'Filantropia' também
+    if (/filantrop/i.test(g)) continue;
+    // Formata apenas para exibição: remove espaços antes/depois de '/'
+    const display = g.replace(/\s*\/\s*/g, '/');
+
     const groupDiv = document.createElement("div");
     groupDiv.className = "group-card";
     const regexVal = state.regexByGroup[g] || "";
@@ -283,7 +335,7 @@ async function renderGroups() {
       <div class="group-header">
         <div class="group-header-main">
           <button class="group-toggle" data-group="${g}" aria-expanded="true">▾</button>
-          <h3>${g}</h3>
+          <h3>${display}</h3>
         </div>
         <div class="group-toolbar">
           <button class="primary" data-action="save" data-group="${g}">💾 Salvar alterações</button>
@@ -646,7 +698,9 @@ async function updateGroupRegex(group, regex) {
 async function handleSaveMinDays() {
   const presetSelect = document.getElementById("preset-min-days");
   const customInput = document.getElementById("custom-min-days");
-  const usdInput = document.getElementById("usd-brl");
+  
+  // Input de USD removido da UI, não precisamos mais lê-lo
+  // const usdInput = document.getElementById("usd-brl");
 
   let minDays;
   let presetLabel;
@@ -663,10 +717,11 @@ async function handleSaveMinDays() {
     { key: "MIN_DAYS_PRESET", value: presetLabel },
   ];
 
-  const usdVal = parseFloat(usdInput.value || "5.2");
-  if (!isNaN(usdVal)) {
-    updates.push({ key: "USD_BRL", value: String(usdVal) });
-  }
+  // A cotação USD ainda existe no state, mas não é mais atualizada por aqui
+  // const usdVal = parseFloat(usdInput.value || "5.2");
+  // if (!isNaN(usdVal)) {
+  //   updates.push({ key: "USD_BRL", value: String(usdVal) });
+  // }
 
   try {
     const data = await apiPost("/api/config", { updates });
@@ -674,9 +729,9 @@ async function handleSaveMinDays() {
     state.regexByGroup = data.config.regex_by_group;
     state.minDays = minDays;
     state.minDaysPreset = presetLabel;
-    state.usdBrl = usdVal;
+    // state.usdBrl = usdVal; // Não atualizamos mais
     renderErrors(data.errors);
-    alert("Configuração de prazo/US$ atualizada.");
+    alert("Configuração de prazo atualizada."); // Mensagem alterada
   } catch (e) {
     alert("Erro ao salvar configuração: " + e);
   }
@@ -813,7 +868,8 @@ async function handleClearAll() {
 // Diagnóstico: abre em nova janela, com barra de progresso e cancelamento
 async function handleRunDiag() {
   const reGovInp = document.getElementById("diag-re-gov");
-  const rePhilInp = document.getElementById("diag-re-phil");
+  const reFundaInp = document.getElementById("diag-re-funda");
+  const reCorpInp = document.getElementById("diag-re-corp");
   const reLatamInp = document.getElementById("diag-re-latam");
   const container = document.getElementById("diag-results");
   const progressOverlay = document.getElementById("diag-progress");
@@ -822,7 +878,8 @@ async function handleRunDiag() {
   if (!container) return;
 
   const reGov = reGovInp ? reGovInp.value || "" : "";
-  const rePhil = rePhilInp ? rePhilInp.value || "" : "";
+  const reFunda = reFundaInp ? reFundaInp.value || "" : "";
+  const reCorp = reCorpInp ? reCorpInp.value || "" : "";
   const reLatam = reLatamInp ? reLatamInp.value || "" : "";
 
   container.innerHTML = "";
@@ -842,7 +899,8 @@ async function handleRunDiag() {
       "/api/diag/providers",
       {
         re_gov: reGov,
-        re_phil: rePhil,
+        re_funda: reFunda,
+        re_corp: reCorp,
         re_latam: reLatam,
       },
       { signal: diagAbortController.signal }
@@ -951,7 +1009,7 @@ function approxTokens(text) {
 
 function getPricingForModel(modelId) {
   const row = document.querySelector(
-    `.pplx-cost-table tr[data-model="${CSS.escape(modelId)}"]`
+    `.pplx-cost-row[data-model="${CSS.escape(modelId)}"]`
   );
   if (!row) {
     return { pin: 1, pout: 1 };
@@ -966,15 +1024,18 @@ function getPricingForModel(modelId) {
 function updatePplxMetrics(promptText, extraTokensFromLink = 0) {
   const modelSelect = document.getElementById("pplx-model");
   const maxOutInput = document.getElementById("pplx-max");
-  const usdInput = document.getElementById("usd-brl");
+  
+  // Input de USD removido, usamos o valor do state
+  // const usdInput = document.getElementById("usd-brl");
+  const usdBrl = state.usdBrl; // Pega o valor default
 
-  if (!modelSelect || !maxOutInput || !usdInput) return;
+  if (!modelSelect || !maxOutInput) return;
 
   const modelId = modelSelect.value;
   const { pin, pout } = getPricingForModel(modelId);
 
   const maxOut = parseInt(maxOutInput.value || "900", 10);
-  const usdBrl = parseFloat(usdInput.value || "5.2");
+  // const usdBrl = parseFloat(usdInput.value || "5.2");
 
   const tinPrompt = approxTokens(promptText);
   const tin = tinPrompt + (extraTokensFromLink || 0);
@@ -1099,7 +1160,8 @@ async function handleRunPerplexity() {
   const tempInput = document.getElementById("pplx-temp");
   const maxOutInput = document.getElementById("pplx-max");
   const saveChk = document.getElementById("pplx-save");
-  const usdInput = document.getElementById("usd-brl");
+  // Input de USD removido
+  // const usdInput = document.getElementById("usd-brl");
   const editalLinkInput = document.getElementById("pplx-edital-link");
 
   const modeloApi = modelSelect.value;
@@ -1107,7 +1169,7 @@ async function handleRunPerplexity() {
 
   const temp = parseFloat(tempInput.value || "0.2");
   const maxOut = parseInt(maxOutInput.value || "900", 10);
-  const usdBrl = parseFloat(usdInput.value || "5.2");
+  const usdBrl = state.usdBrl; // Pega o valor default
   const save = !!saveChk.checked;
   const editalLink = editalLinkInput ? editalLinkInput.value || null : null;
 
@@ -1193,6 +1255,13 @@ function updateSidebarForTab(tabName){
   const resetBtn = (el) => {
     if (!el) return el;
     const clone = el.cloneNode(true);
+    
+    // CORREÇÃO (aplicada da nossa conversa anterior):
+    // Remove o atributo 'onclick' do HTML original.
+    // Isso evita o conflito entre o 'onclick' (que definia o hash)
+    // e o 'addEventListener' (que definia o href='/').
+    clone.removeAttribute("onclick");
+    
     el.parentNode.replaceChild(clone, el);
     return clone;
   };
@@ -1257,7 +1326,10 @@ window.addEventListener("DOMContentLoaded", async () => {
     activateTab("manage");
   }
 
-  // sincroniza o valor exibido "COTAÇÃO DO DÓLAR HOJE" no topo da tela do Perplexity
+  // JAVASCRIPT REMOVIDO:
+  // A função syncDolarTag foi removida pois o input 'usd-brl'
+  // e o 'dolar-value' (badge) foram removidos do HTML.
+  /*
   (function syncDolarTag(){
     const tag = document.getElementById("dolar-value");
     const usd = document.getElementById("usd-brl");
@@ -1269,6 +1341,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     set();
     usd.addEventListener("input", set);
   })();
+  */
 
   // ====== ELEMENTOS (existentes + novos) ======
   const presetSelect = document.getElementById("preset-min-days");
@@ -1404,12 +1477,16 @@ window.addEventListener("DOMContentLoaded", async () => {
       updatePplxMetrics(prompt, state.linkTokens);
     });
   }
-  document.querySelectorAll(".pplx-cost-table input[type='number']").forEach((inp) => {
+  document.querySelectorAll(".pplx-cost-panel input[type='number']").forEach((inp) => {
     inp.addEventListener("input", () => {
       const { prompt } = getPplxPromptAndModeLabel();
       updatePplxMetrics(prompt, state.linkTokens);
     });
   });
+  
+  // JAVASCRIPT REMOVIDO:
+  // O listener para 'usd-brl' foi removido pois o elemento não existe mais.
+  /*
   const usdInput = document.getElementById("usd-brl");
   if (usdInput) {
     usdInput.addEventListener("input", () => {
@@ -1417,6 +1494,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       updatePplxMetrics(prompt, state.linkTokens);
     });
   }
+  */
 
   // ====== NOVO: chips "Encerramento em" (não muda backend; apenas altera state.minDays) ======
   function setDeadlinePreset(days){
@@ -1494,6 +1572,19 @@ window.addEventListener("DOMContentLoaded", async () => {
     alert("Erro ao carregar configuração inicial: " + e);
   }
   markInitialDeadline();
+
+  // --- NOVO CÓDIGO ADICIONADO ---
+  // Após carregar a config (que define o R$ padrão),
+  // busca a cotação real e atualiza o state e a UI.
+  (async () => {
+    const liveRate = await fetchDollarRate();
+    if (liveRate) {
+      updateDollarUI(liveRate);
+      console.log(`Cotação do dólar atualizada para R$ ${liveRate.toFixed(2)}`);
+    } else {
+      console.warn("Não foi possível buscar cotação live do dólar, usando valor padrão.");
+    }
+  })();
 });
 
 // Toggle simples da seção de diagnóstico

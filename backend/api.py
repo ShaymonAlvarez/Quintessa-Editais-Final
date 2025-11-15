@@ -70,7 +70,8 @@ class ItemsDeleteRequest(BaseModel):
 
 class DiagRequest(BaseModel):
     re_gov: str = ""
-    re_phil: str = ""
+    re_funda: str = ""
+    re_coorp: str = ""
     re_latam: str = ""
 
 
@@ -254,11 +255,11 @@ async def api_diag_providers(req: DiagRequest):
     """
     Executa diagnóstico dos providers (similar à aba de diagnóstico).
 
-    Permite informar regex customizado para GOVERNO/PHIL/LATAM,
+    Permite informar regex customizado para GOVERNO/FUNDA/CORP/LATAM,
     ou usar valores vazios para cair nos defaults.
     """
     init_error_bus()
-    data = get_diag_providers(req.re_gov, req.re_phil, req.re_latam)
+    data = get_diag_providers(req.re_gov, req.re_funda, req.re_corp, req.re_latam)
     return {
         "diag": data,
         "errors": get_errors(),

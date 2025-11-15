@@ -1,6 +1,6 @@
 from .common import normalize, list_links, scrape_deadline_from_page
 
-PROVIDER = {"name":"Green Climate Fund (GCF)","group":"Filantropia"}
+PROVIDER = {"name":"Green Climate Fund (GCF)","group":"Governo/Multilaterais"}
 
 def fetch(regex, cfg):
     url = "https://www.greenclimate.fund/work-with-us/opportunities"

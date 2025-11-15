@@ -144,13 +144,15 @@ def _canon_group(s: str) -> str:
 
 def _regex_key_for_group(group_name: str) -> str:
     """
-    Mapeia o nome do grupo para a chave de configuração (RE_XXX ou RE_GOV/RE_PHIL/RE_LATAM).
+    Mapeia o nome do grupo para a chave de configuração (RE_XXX ou RE_GOV/RE_FUNDA/RE_CORP/RE_LATAM).
     """
     if _canon_group(group_name) == _canon_group("Governo/Multilaterais"):
         return "RE_GOV"
-    if _canon_group(group_name) == _canon_group("Filantropia"):
-        return "RE_PHIL"
-    if _canon_group(group_name) == _canon_group("América Latina / Brasil"):
+    if _canon_group(group_name) == _canon_group("Fundações e Prêmios"):
+        return "RE_FUNDA"
+    if _canon_group(group_name) == _canon_group("Corporativo/Aceleradoras"):
+        return "RE_CORP"
+    if _canon_group(group_name) == _canon_group("América Latina/Brasil"):
         return "RE_LATAM"
     return f"RE_{hashlib.sha1(group_name.encode()).hexdigest()[:6].upper()}"
 
@@ -158,7 +160,8 @@ def _regex_key_for_group(group_name: str) -> str:
 # Defaults para regex por grupo (iguais ao código original)
 DEFAULT_REGEX = {
     "RE_GOV": r"bioeconom(y|ia)|biodiversit(y|ade)|forest|amaz(o|ô)nia|innovation|accelerat(or|ora)|impact",  # noqa: E501
-    "RE_PHIL": r"(climate|biodiversit|health|science|equitable|innovation|impact|accelerator)",
+    "RE_FUNDA": r"(climate|biodiversit|health|science|equitable|innovation|impact|accelerator)",
+    "RE_CORP": r"(climate|biodiversit|health|science|equitable|innovation|impact|accelerator)",
     "RE_LATAM": r"(bioeconom|biodivers|amaz[oô]nia|floresta|inova|acelera|impacto|tecnologia)",
 }
 
@@ -606,7 +609,7 @@ def clear_all_items() -> Dict[str, Any]:
     return {"cleared": True}
 
 
-def get_diag_providers(re_gov: str, re_phil: str, re_latam: str) -> Dict[str, Any]:
+def get_diag_providers(re_gov: str, re_funda: str, re_corp: str, re_latam: str) -> Dict[str, Any]:
     """
     Executa o diagnóstico dos providers, semelhante à aba "🔬 Diagnóstico".
 
@@ -624,10 +627,13 @@ def get_diag_providers(re_gov: str, re_phil: str, re_latam: str) -> Dict[str, An
         if _canon_group(g) == _canon_group("Governo/Multilaterais"):
             pat = re_gov or DEFAULT_REGEX.get("RE_GOV", r".*")
             fb = DEFAULT_REGEX.get("RE_GOV", r".*")
-        elif _canon_group(g) == _canon_group("Filantropia"):
-            pat = re_phil or DEFAULT_REGEX.get("RE_PHIL", r".*")
-            fb = DEFAULT_REGEX.get("RE_PHIL", r".*")
-        elif _canon_group(g) == _canon_group("América Latina / Brasil"):
+        elif _canon_group(g) == _canon_group("Fundações e Prêmios"):
+            pat = re_funda or DEFAULT_REGEX.get("RE_FUNDA", r".*")
+            fb = DEFAULT_REGEX.get("RE_FUNDA", r".*")
+        elif _canon_group(g) == _canon_group("Corporativo/Aceleradoras"):
+            pat = re_corp or DEFAULT_REGEX.get("RE_CORP", r".*")
+            fb = DEFAULT_REGEX.get("RE_CORP", r".*")
+        elif _canon_group(g) == _canon_group("América Latina/Brasil"):
             pat = re_latam or DEFAULT_REGEX.get("RE_LATAM", r".*")
             fb = DEFAULT_REGEX.get("RE_LATAM", r".*")
         else:

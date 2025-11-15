@@ -126,7 +126,7 @@ def get_available_groups() -> list[str]:
     Retorna a lista de grupos disponíveis, misturando base fixa
     com grupos descobertos nos providers.
     """
-    base = ["Governo/Multilaterais", "Filantropia", "América Latina / Brasil"]
+    base = ["Governo/Multilaterais", "Fundações e Prêmios", "Corporativo/Aceleradoras","América Latina/Brasil"]
     try:
         mods = load_providers()
         groups = {

@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <style>
     :root{
@@ -17,7 +17,8 @@
     html,body{height:100%}
     body{
       margin:0;
-      font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      /* Fonte "Barlow" (como na tarefa anterior) */
+      font-family: "Barlow", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background:var(--purple);
       color:var(--white);
       display:flex;
@@ -30,7 +31,7 @@
       padding:20px 28px;
     }
     .topbar img{
-      height:44px; /* ajuste conforme seu logo */
+      height:44px;
       width:auto;
       display:block;
     }
@@ -48,6 +49,7 @@
       font-weight:800;
       font-size: clamp(28px, 4vw, 44px);
       letter-spacing:1px;
+      text-transform: uppercase;
     }
     .btns{
       display:flex;
@@ -60,7 +62,7 @@
       border:none;
       background:var(--white);
       color:var(--purple);
-      font-weight:800;
+      font-weight:700;
       letter-spacing:.5px;
       padding:16px 28px;
       border-radius:999px;
@@ -80,45 +82,14 @@
       max-width:920px;
     }
     .footer a{ color:#fff; text-underline-offset:2px; }
-
-
-    /*
-    Se o Quintessa tiver uma fonte proprietária (arquivo .woff2/.ttf), coloque em frontend/fonts/ e troque por @font-face:
     
-    @font-face{
-      font-family: "QuintessaBrand";
-      src: url("/fonts/QuintessaBrand.woff2") format("woff2"),
-           url("/fonts/QuintessaBrand.woff") format("woff");
-      font-weight: 400 800;
-      font-style: normal;
-      font-display: swap;
-    }
-    body{ font-family: "QuintessaBrand", Montserrat, system-ui, sans-serif; }*/
-
-
-
     body{
-    /* ... */
-    font-family: "Montserrat", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    }
-
-    .title{
-    font-weight: 800;              /* bem “encorpado” */
-    letter-spacing: .6px;          /* leve tracking como no mock */
-    text-transform: uppercase;
-    }
-
-    .cta{
-    font-weight: 700;              /* botões */
-    letter-spacing: .5px;
-    text-transform: uppercase;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
   </style>
 </head>
 <body>
-  <!-- Coloque seu arquivo do logo em /frontend/logo.png (ou ajuste o src abaixo) -->
   <div class="topbar">
     <img src="/static/logo.png" alt="QUINTESSA" />
   </div>
@@ -126,7 +97,6 @@
   <main class="hero">
     <h1 class="title">AUTOMAÇÃO DE EDITAIS</h1>
     <div class="btns">
-      <!-- Os botões encaminham para /app com a aba correta aberta -->
       <button class="cta" onclick="window.location.href='/app#perplexity'">
         PESQUISA NO PERPLEXITY
       </button>

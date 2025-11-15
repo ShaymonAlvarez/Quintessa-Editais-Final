@@ -11,7 +11,7 @@
   --text-light:#fff;
   --muted:#6c6c6c;
   --border:rgba(0,0,0,.08);
-  --font:"Barlow", system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --font:"Barlow", system-ui,-apple-system,BlinkMacSystemFont,"Barlow",sans-serif;
 }
 
 *{box-sizing:border-box;}
@@ -30,7 +30,7 @@ body.collect-theme .app-main{padding:0;}
 /* =================== LAYOUT =================== */
 .collect-layout{
   display:grid;
-  grid-template-columns: 320px 1fr; /* sidebar + conteúdo */
+  grid-template-columns: 340px 1fr; /* sidebar + conteúdo */
   min-height:100vh;
   background:var(--qs-purple);
 }
@@ -38,21 +38,31 @@ body.collect-theme .app-main{padding:0;}
 /* Sidebar BRANCA fixa */
 .collect-sidebar{
   background:#fff;color:#34204f;
-  padding:24px 18px;display:flex;flex-direction:column;gap:32px;
+  padding:45px 18px;display:flex;flex-direction:column;
+  gap:320px;
   border-right:1px solid var(--border);
 
   position:sticky;top:0;align-self:start;height:100vh;overflow:auto;
 }
 .collect-sidebar .qs-logo{display:flex;justify-content:center;}
 .collect-sidebar .qs-logo{margin-bottom:6px;}
-.collect-sidebar .qs-logo img{width:148px;height:auto;display:block;}
+.collect-sidebar .qs-logo img{
+  width:190px;
+  height:auto;
+  display:block;
+}
 
 .side-actions{display:flex;flex-direction:column;gap:14px;}
 .side-cta{
   display:flex;align-items:center;justify-content:center;
   width:100%;border:none;cursor:pointer;text-decoration:none;
   background:var(--qs-purple);color:#fff;border-radius:999px;
-  padding:14px 16px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;
+  padding:14px 16px;
+  font-weight: 700;
+  font-size: 0.95rem; 
+  letter-spacing:.3px;
+  text-transform:uppercase;
+  font-family: var(--font);
 }
 
 /* Conteúdo roxo à direita */
@@ -169,13 +179,18 @@ button.danger{background:#b00020;color:#fff;border:none;}
   color:#fff;
 }
 
-.pplx-cost-panel input[type="number"]{
+.pplx-cost-panel .pplx-cost-cell input[type="number"]{
   background:rgba(0,0,0,.35);
   color:#fff;
   border:1px solid rgba(255,255,255,.2);
-  border-radius:8px;
-  padding:6px 8px;
+  border-radius:6px;
+  padding: 2px 4px; 
+  width: 45px;      
+  margin: 0 4px;    
+  text-align: center;
+  font-size: 0.8rem;
 }
+
 .pplx-cost-panel input[type="number"]:focus{
   outline:2px solid rgba(32,164,180,.7);
 }
@@ -190,13 +205,29 @@ button.danger{background:#b00020;color:#fff;border:none;}
 
 /* Cards principais */
 .pplx-left,#pplx-output{
-  border:1px solid var(--border);border-radius:12px;padding:12px;background:#fff;color:#111;
+  border:1px solid var(--border);border-radius:12px;
+  padding:16px;
+  background:#fff;color:#111;
 }
 
 .pplx-left{
-  background:#faf7ff;                      /* tira o branco puro do card */
+  background:#faf7ff;
   border-color:rgba(122,85,183,.25);
 }
+
+.pplx-left h3 {
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+.pplx-left > label {
+    margin-top: 20px; /* Aumentado */
+    display: block; 
+}
+.pplx-left > label:first-of-type {
+    margin-top: 0;
+}
+
 /* Campos do painel esquerdo em lilás suave */
 .pplx-left input[type="text"],
 .pplx-left input[type="number"],
@@ -208,6 +239,7 @@ button.danger{background:#b00020;color:#fff;border:none;}
   border:1px solid #d8c6ff;
   border-radius:10px;
   padding:10px 12px;
+  margin-top: 4px;
 }
 .pplx-left textarea{ min-height:190px; line-height:1.35; }
 .pplx-left input::placeholder{ color:#8a78b8; }
@@ -216,6 +248,40 @@ button.danger{background:#b00020;color:#fff;border:none;}
 .pplx-left textarea:focus{
   outline:2px solid rgba(32,164,180,.65);
 }
+
+.pplx-tpl-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-top: 16px; /* Aumentado */
+}
+.pplx-left .pplx-tpl-grid input {
+    margin-top: 0;
+}
+.pplx-left .pplx-tpl-grid label {
+    margin-top: 0;
+}
+
+
+.pplx-link-row {
+    margin-top: 20px; /* Aumentado */
+}
+.pplx-link-main {
+    display: grid;
+    gap: 4px; 
+}
+.pplx-link-row .pplx-link-main input {
+    margin-top: 0; 
+}
+.pplx-link-row label {
+    margin-top: 0;
+}
+
+.pplx-link-actions {
+    margin-top: 8px; 
+}
+
+
 /* Botão "Estimar tokens do link" */
 .pplx-link-actions button{
   background:#7a45b8;color:#f3ecff;border:none;border-radius:10px;
@@ -227,9 +293,18 @@ button.danger{background:#b00020;color:#fff;border:none;}
 .pplx-right{
   border:1px solid rgba(255,255,255,.18);
   border-radius:12px;
-  padding:14px;
-  background:#1c1c24; /* card escuro à direita, como no print */
+  padding:16px;
+  background:#1c1c24; 
   color:#eee;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px; 
+  /* CORREÇÃO (Alongar Coluna): 
+    A linha 'align-content: start;' foi removida.
+    Isto faz com que os itens da grelha (Modelo, Temperatura, etc.) 
+    se distribuam verticalmente, ocupando a altura total da coluna.
+  */
+  /* align-content: start; */ 
 }
 .pplx-right label{font-weight:600;letter-spacing:.02em;color:#cfd3ff;}
 .pplx-right input[type="number"],
@@ -241,6 +316,7 @@ button.danger{background:#b00020;color:#fff;border:none;}
   border:1px solid rgba(255,255,255,.16);
   border-radius:8px;
   padding:10px 10px;
+  margin-top: 4px;
 }
 
 .pplx-right input[type="range"]{
@@ -252,7 +328,25 @@ button.danger{background:#b00020;color:#fff;border:none;}
   outline:2px solid rgba(32,164,180,.6);
 }
 
-.pplx-right .caption{color:#b8b8c9;}
+.pplx-temp-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+}
+.pplx-temp-row input[type="range"] {
+    flex: 1;
+    margin-top: 0; 
+}
+
+.pplx-right .caption{
+  color:#b8b8c9;
+  margin: 0;
+  line-height: 1.4;
+  margin-top: -12px; 
+}
+
+
 .pplx-right .primary{
   width:100%;
   background:#20a4b4;color:#051b20;border:none;border-radius:10px;
@@ -260,17 +354,73 @@ button.danger{background:#b00020;color:#fff;border:none;}
 }
 
 .pplx-right .primary:hover{ filter:brightness(1.06); }
-.pplx-cost-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:.85rem;}
-.pplx-cost-table th,.pplx-cost-table td{
-  border:1px solid rgba(255,255,255,.15);
-  padding:6px 8px;color:#fff;
-}
-.pplx-cost-table th{background:rgba(255,255,255,.08);text-align:left;}
 
-.pplx-cost-footer{margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;}
-.pplx-main{display:grid;grid-template-columns:minmax(0,3fr) minmax(260px,1fr);gap:16px;margin-bottom:16px;}
+/* CORREÇÃO (Remover Gap): 
+  'grid-template-columns' foi alterado de '200px 1fr 1fr' 
+  para '200px auto auto'. 
+  Isto faz com que as colunas de Input e Output encolham 
+  para o tamanho do seu conteúdo, removendo o espaço vazio.
+*/
+.pplx-cost-grid,
+.pplx-cost-row {
+  display: grid;
+  grid-template-columns: 200px auto auto; /* Nome | Input (auto) | Output (auto) */
+  gap: 8px;
+  align-items: center;
+}
+
+.pplx-cost-grid { /* O header do grid */
+  margin-top: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255,255,255,.15);
+}
+
+.pplx-grid-header {
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.pplx-cost-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-bottom: 8px;
+}
+
+.pplx-cost-row {
+  font-size: 0.85rem;
+}
+
+.pplx-model-name {
+  font-weight: 600;
+}
+
+.pplx-cost-cell {
+  font-size: 0.8rem;
+  opacity: 0.95;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap; 
+}
+
+.pplx-main{
+  display:grid;
+  /* Alterado de 3fr/1fr (75%/25%) para 2fr/2fr (50%/50%) */
+  grid-template-columns:minmax(0,2fr) minmax(260px,2fr);
+  gap:24px; /* Aumentado */
+  margin-bottom:16px;
+  margin-top: 16px;
+}
 #pplx-tpl-output{width:100%;min-height:180px;}
-.pplx-metrics{display:flex;gap:8px;margin:8px 0;}
+
+.pplx-metrics{
+  display:flex;
+  gap:8px;
+  margin: 0; 
+}
 .pplx-metrics>div{
   flex:1;border-radius:8px;border:1px solid rgba(255,255,255,.16);
   padding:8px;background:#0f0f15;color:#e9e9f4;font-size:.85rem;
@@ -280,6 +430,7 @@ button.danger{background:#b00020;color:#fff;border:none;}
 #pplx-output{
   background:#f6f0ff;
   border-color:rgba(122,85,183,.25);
+  padding: 16px; 
 }
 #pplx-output h3{
   margin:0; padding:10px 12px;
@@ -289,22 +440,68 @@ button.danger{background:#b00020;color:#fff;border:none;}
 }
 #pplx-output > div, #pplx-output ul{
   padding:10px 2px 6px;
+  margin-top: 8px;
 }
+#pplx-output ul {
+  padding-left: 20px; 
+}
+
 
 /* =================== RESPONSIVO =================== */
 @media (max-width:980px){
-  .collect-layout{grid-template-columns:1fr;}
-  .collect-sidebar{grid-row:1;flex-direction:row;align-items:center;justify-content:space-between;height:auto;position:static;}
-  .collect-sidebar .qs-logo img{width:108px;}
-  .collect-sidebar .qs-logo{margin-bottom:22px;} /* mais espaço do logo até os botões */
+  .collect-layout{
+    grid-template-columns:1fr;
+  }
+  .collect-sidebar{
+    grid-row:1;flex-direction:row;align-items:center;justify-content:space-between;height:auto;position:static;
+    /* CORREÇÃO 4 (Responsivo): Resetar gap para layout horizontal */
+    gap: 10px;
+  }
+  .collect-sidebar .qs-logo img{
+    width:108px;
+    /* CORREÇÃO 1 (Responsivo): Resetar tamanho do logo */
+  }
+  .collect-sidebar .qs-logo{margin-bottom:0;} 
   .side-actions{flex-direction:row;gap:10px;}
   .side-cta{padding:10px 12px;font-size:.88rem;}
+  
   .collect-toolbar{grid-template-columns:1fr;}
   .filter-column{min-width:auto;}
   .filter-line{flex-wrap:wrap;}
   .filter-chips-inline{flex-wrap:wrap;}
   .item-row{grid-template-columns:1fr;}
   .pplx-main{grid-template-columns:1fr;}
+
+  /* Ajuste responsivo para o novo grid de custos */
+  .pplx-cost-grid,
+  .pplx-cost-row {
+    grid-template-columns: 1fr; /* Empilha as colunas em telas pequenas */
+    gap: 6px;
+  }
+  .pplx-cost-grid {
+    display: none; /* Esconde o header do grid em telas pequenas */
+  }
+  .pplx-cost-row {
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+  }
+  .pplx-model-name {
+    font-size: 0.9rem;
+  }
+  
+  /* Responsivo para a nova toolbar */
+  #new-toolbar.collect-toolbar {
+    grid-template-columns: 1fr; /* Empilha as 3 colunas */
+  }
+
+  /* Ajuste responsivo para os filtros */
+  #new-toolbar .form-group {
+    grid-template-columns: 1fr; /* Empilha label e input */
+  }
+  #new-toolbar .form-group label {
+    white-space: normal; /* Permite quebra de linha da label */
+    margin-bottom: 4px;
+  }
 }
 
  /* =================== MODAL (overlay fixo) =================== */
@@ -333,3 +530,166 @@ button.danger{background:#b00020;color:#fff;border:none;}
   background:var(--qs-blue);color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;
 }
 .modal-actions button{border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;background:#f6f6f6;}
+
+
+/* =================================== */
+/* NOVOS ESTILOS - TELA DE COLETA      */
+/* =================================== */
+
+/* 1. Ajusta o título "BUSCA E COLETA" */
+.collect-hero h2 {
+  text-align: left; /* Alinha à esquerda */
+  color: #fff;
+  /* Remove o espaçamento exagerado (opcional) */
+  /* text-transform: none; */ 
+  /* letter-spacing: 0; */
+}
+
+/* 2. Estiliza a nova barra de ferramentas roxa */
+#new-toolbar.collect-toolbar {
+  background: #3a1d5e; /* Fundo roxo escuro da imagem */
+  padding: 24px;
+  border-radius: 10px;
+  margin-bottom: 24px;
+  /* Mantém a largura que ajustamos */
+  grid-template-columns: 340px 1fr 260px; /* Layout 3 colunas */
+  gap: 24px;
+  align-items: start;
+}
+
+/* 3. Estiliza a Coluna de Filtros (Formulário) */
+#new-toolbar .form-title {
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  color: #fff; /* Título "FILTRAR POR:" branco */
+}
+
+/* CORREÇÃO: Filtro "cortado" */
+#new-toolbar .form-group {
+  display: grid;
+  grid-template-columns: auto 1fr; /* Label (auto) + Input (flex) */
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+#new-toolbar .form-group label {
+  font-weight: 600;
+  color: #eee; /* Labels brancos/cinza-claro */
+  font-size: 0.95rem;
+  white-space: nowrap; /* Impede que a label quebre a linha */
+}
+
+/* Estilo dos inputs na barra roxa (com fundo branco) */
+#new-toolbar .form-control {
+  background: #ffffff; /* Fundo BRANCO */
+  border: 1px solid #b0b0b0; /* Borda cinza sutil */
+  color: var(--text-dark); /* Texto escuro */
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-family: var(--font); /* Garante a fonte Barlow */
+  font-size: 0.95rem;
+  width: 100%;
+}
+#new-toolbar .form-control::placeholder {
+  color: #999; /* Placeholder cinza */
+  opacity: 1;
+}
+
+/* Botão "Salvar Prazo" (cinza) */
+#new-toolbar .pill-btn.pill-muted {
+  background: #e5def0;
+  color: #3a2a54;
+  font-weight: 700;
+  margin-top: 8px;
+  width: 100%;
+}
+
+/* 4. Estiliza a Coluna de Grupos */
+#new-toolbar .groups-title {
+  color: #fff; /* Título "GRUPOS A COLETAR" branco */
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 12px;
+  text-align: center; /* CORREÇÃO: Centraliza o título */
+}
+
+/* CORREÇÃO: Centraliza o bloco da lista */
+#new-toolbar .groups-list {
+  width: fit-content;
+  margin: 0 auto;
+}
+
+#new-toolbar .groups-list label {
+  color: #fff; /* Texto dos checkboxes branco */
+  margin: 10px 0;
+  display: block; /* Garante que fiquem um abaixo do outro */
+  text-align: left; /* Alinha o texto dentro da label */
+}
+#new-toolbar .groups-list input[type="checkbox"] {
+  margin-right: 8px;
+  accent-color: var(--qs-blue); /* Cor do check (azul/teal) */
+}
+
+/* 5. Estiliza os Botões de Ação (coloridos) */
+/* CORREÇÃO: Diminui o padding vertical */
+#new-toolbar .pill-btn {
+  padding: 10px 16px; 
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+/* Botões brancos (Diagnóstico, Recarregar) */
+#new-toolbar .pill-btn.pill-diag,
+#new-toolbar .pill-btn.pill-refresh {
+  background: #fff;
+  color: #3a2a54;
+}
+
+/* Botão vermelho (Resetar) */
+#new-toolbar .pill-btn.pill-danger {
+  background: #b00020;
+  color: #fff;
+}
+
+/* Botão verde/azul (Rodar Coleta) */
+#new-toolbar .pill-btn.pill-success {
+  background: var(--qs-blue);
+  color: #fff;
+}
+
+/* Remove estilos antigos que não são mais usados aqui */
+#new-toolbar .pill-btn.pill-alt { background: none; }
+#new-toolbar .pill-btn.pill-primary { background: none; }
+
+
+/* 6. Estiliza botões DENTRO dos cards brancos (Salvar, Apagar, etc.) */
+/* Isso já existe no seu CSS, mas vamos garantir as cores da imagem */
+
+#groups-container .group-toolbar button[data-action="save"],
+#groups-container .group-toolbar button[data-action="save-regex"] {
+  background: #f0f0f0;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+/* O 'button.danger' já deve estar vermelho, mas para garantir: */
+#groups-container .group-toolbar button[data-action="delete"] {
+  background: #b00020;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
