@@ -125,18 +125,25 @@ def get_available_groups() -> list[str]:
     """
     Retorna a lista de grupos disponíveis, misturando base fixa
     com grupos descobertos nos providers.
+    
+    Ajuste: Normaliza nomes removendo espaços ao redor de '/' para evitar duplicidade.
     """
     base = ["Governo/Multilaterais", "Fundações e Prêmios", "Corporativo/Aceleradoras","América Latina/Brasil"]
+    
+    # Conjunto para garantir unicidade, iniciado com a base
+    groups = set(base)
+
     try:
         mods = load_providers()
-        groups = {
-            m.PROVIDER.get("group", "")
-            for m in mods
-            if m.PROVIDER.get("group", "").strip()
-        }
+        for m in mods:
+            raw_group = m.PROVIDER.get("group", "").strip()
+            if raw_group:
+                # Normaliza: troca " / " por "/" para bater com a lista base
+                norm_group = raw_group.replace(" / ", "/").replace(" /", "/").replace("/ ", "/")
+                groups.add(norm_group)
     except Exception:
-        groups = set()
-    groups.update(base)
+        pass
+        
     return sorted(groups, key=lambda s: s.lower())
 
 

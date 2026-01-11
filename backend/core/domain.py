@@ -82,7 +82,6 @@ def col_letter(i: int) -> str:
 def _to_iso(v: Any) -> str:
     """
     Converte datetime/date/string para ISO (robusto).
-
     Mantém a lógica original de tentar isoformat() e depois dateutil.
     """
     if not v:
@@ -101,7 +100,6 @@ def _to_iso(v: Any) -> str:
 def within_min_days(deadline_iso: Optional[str], min_days: int) -> bool:
     """
     Verifica se a data de deadline está a pelo menos 'min_days' dias no futuro.
-
     Se não conseguir interpretar ou não houver deadline, considera True
     (mantém comportamento permissivo).
     """
@@ -117,21 +115,24 @@ def within_min_days(deadline_iso: Optional[str], min_days: int) -> bool:
 
 def _compile_re(val: Optional[str], fallback: str = r".+") -> re.Pattern:
     """
-    Compila regex, caindo para 'fallback' se regex estiver vazia ou inválida.
+    Compila regex.
+    Se 'val' for string vazia (""), compila como regex vazia (match em tudo),
+    em vez de forçar o fallback.
     """
     try:
+        # Se val for None, vira "". Se for "", continua "".
         pat = (val or "").strip()
-        if pat == "":
-            pat = fallback
+        # Alteração: aceitamos regex vazia explicitamente para permitir "sem filtro"
         return re.compile(pat, re.I)
     except re.error:
+        # Se der erro de sintaxe na regex (ex: "[a-z"), aí sim usamos o fallback
         return re.compile(fallback, re.I)
 
 
 # ---------- canonização de nomes de grupo ----------
 def _canon_group(s: str) -> str:
     """
-    Normaliza o nome do grupo remo vendo acentos, espaços extras etc.
+    Normaliza o nome do grupo removendo acentos, espaços extras etc.
     Facilita comparar strings de grupos.
     """
     if not s:
@@ -146,30 +147,30 @@ def _regex_key_for_group(group_name: str) -> str:
     """
     Mapeia o nome do grupo para a chave de configuração (RE_XXX ou RE_GOV/RE_FUNDA/RE_CORP/RE_LATAM).
     """
-    if _canon_group(group_name) == _canon_group("Governo/Multilaterais"):
+    c = _canon_group(group_name)
+    if c == _canon_group("Governo/Multilaterais"):
         return "RE_GOV"
-    if _canon_group(group_name) == _canon_group("Fundações e Prêmios"):
+    if c == _canon_group("Fundações e Prêmios"):
         return "RE_FUNDA"
-    if _canon_group(group_name) == _canon_group("Corporativo/Aceleradoras"):
+    if c == _canon_group("Corporativo/Aceleradoras"):
         return "RE_CORP"
-    if _canon_group(group_name) == _canon_group("América Latina/Brasil"):
+    if c == _canon_group("América Latina/Brasil"):
         return "RE_LATAM"
     return f"RE_{hashlib.sha1(group_name.encode()).hexdigest()[:6].upper()}"
 
 
-# Defaults para regex por grupo (iguais ao código original)
+# Defaults para regex por grupo (AGORA VAZIOS PARA NÃO PREENCHER A TELA)
 DEFAULT_REGEX = {
-    "RE_GOV": r"bioeconom(y|ia)|biodiversit(y|ade)|forest|amaz(o|ô)nia|innovation|accelerat(or|ora)|impact",  # noqa: E501
-    "RE_FUNDA": r"(climate|biodiversit|health|science|equitable|innovation|impact|accelerator)",
-    "RE_CORP": r"(climate|biodiversit|health|science|equitable|innovation|impact|accelerator)",
-    "RE_LATAM": r"(bioeconom|biodivers|amaz[oô]nia|floresta|inova|acelera|impacto|tecnologia)",
+    "RE_GOV": "",
+    "RE_FUNDA": "",
+    "RE_CORP": "",
+    "RE_LATAM": "",
 }
 
 
 def _migrate_relative_links() -> int:
     """
     Conserta links relativos já salvos (ex.: '?1dmy=...') na aba 'items'.
-
     Retorna a quantidade de links corrigidos.
     """
     try:
@@ -246,7 +247,6 @@ def run_collect(
     """
     Executa a coleta nos providers, grava novos itens na planilha
     e retorna estatísticas da execução.
-
     - min_days: prazo mínimo em dias para considerar os editais
     - groups_filter: lista de grupos a coletar (ou None para todos)
     """
@@ -274,24 +274,31 @@ def run_collect(
     all_groups = {p.PROVIDER.get("group", "") for p in providers_all}
     for g in all_groups:
         key = _regex_key_for_group(g)
-        base_pattern = cfg.get(key) or DEFAULT_REGEX.get(key, r".+")
-        fallback = DEFAULT_REGEX.get(key, r".+")
+        # Se a config não tiver nada, usa o DEFAULT_REGEX (que agora é "")
+        base_pattern = cfg.get(key)
+        if base_pattern is None:
+            base_pattern = DEFAULT_REGEX.get(key, "")
+        
+        fallback = r".+" # Fallback apenas se der erro de sintaxe
         re_map[g] = _compile_re(base_pattern, fallback=fallback)
 
     grouped: Dict[str, List[Dict[str, Any]]] = {}
     provider_stats: List[Dict[str, Any]] = []
 
-    total = max(len(providers), 1)
-    step = 0
+    # Se não houver providers, zera
+    if not providers:
+        # Nada a fazer
+        pass
 
     for p in providers:
         gname = p.PROVIDER.get("group", "")
         grouped.setdefault(gname, [])
         src_name = p.PROVIDER.get("name", "(sem nome)")
         try:
+            # Pega a regex compilada para este grupo
             rgx = re_map.get(
                 gname,
-                _compile_re(DEFAULT_REGEX.get(_regex_key_for_group(gname), r".+")),
+                _compile_re("", fallback=r".+")
             )
             items_raw = p.fetch(rgx, cfg) or []
             n_raw = len(items_raw)
@@ -324,8 +331,6 @@ def run_collect(
                     "itens_pos_prazo": "erro",
                 }
             )
-
-        step += 1
 
     # Loga estatísticas na aba 'logs'
     if provider_stats:
@@ -388,7 +393,11 @@ def get_app_config() -> Dict[str, Any]:
     regex_by_group: Dict[str, str] = {}
     for g in groups:
         key = _regex_key_for_group(g)
-        regex_by_group[g] = cfg.get(key) or DEFAULT_REGEX.get(key, "")
+        # Se não houver na config, pega do DEFAULT (que agora é vazio)
+        val = cfg.get(key)
+        if val is None:
+            val = DEFAULT_REGEX.get(key, "")
+        regex_by_group[g] = val
 
     return {
         "config": cfg,
@@ -404,7 +413,6 @@ def get_app_config() -> Dict[str, Any]:
 def update_config_pairs(updates: List[Dict[str, str]]) -> Dict[str, Any]:
     """
     Atualiza várias chaves na aba 'config' de uma vez.
-
     'updates' deve ser lista de dicts com 'key' e 'value'.
     """
     for item in updates:
@@ -419,7 +427,6 @@ def update_config_pairs(updates: List[Dict[str, str]]) -> Dict[str, Any]:
 def update_group_regex(group: str, regex: str) -> Dict[str, Any]:
     """
     Atualiza o regex para um grupo específico (mapeando para chave RE_...).
-
     Retorna a config atualizada.
     """
     key = _regex_key_for_group(group)
@@ -430,7 +437,6 @@ def update_group_regex(group: str, regex: str) -> Dict[str, Any]:
 def get_items_for_group(group: str, status_filter: Optional[str] = None) -> Dict[str, Any]:
     """
     Retorna itens de um grupo já transformados em estrutura amigável para o frontend.
-
     - Agrupa por 'source'
     - Remove itens marcados como 'do_not_show'
     - Aplica filtro de status se fornecido
@@ -510,7 +516,6 @@ def update_items(updates: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Aplica atualizações de campos (seen, status, notes, do_not_show)
     com base no uid dos itens.
-
     'updates' é lista de dicts: { uid, seen(bool), status, notes, do_not_show(bool) }.
     """
     if not updates:
@@ -570,7 +575,6 @@ def update_items(updates: List[Dict[str, Any]]) -> Dict[str, Any]:
 def delete_items_by_uids(uids: List[str]) -> Dict[str, Any]:
     """
     Remove da planilha os itens cujo uid esteja em 'uids'.
-
     A exclusão é feita linha a linha, de baixo para cima.
     """
     if not uids:
@@ -602,7 +606,6 @@ def delete_items_by_uids(uids: List[str]) -> Dict[str, Any]:
 def clear_all_items() -> Dict[str, Any]:
     """
     Limpa a aba 'items' mantendo apenas o cabeçalho.
-
     Equivalente ao botão "Limpar TODOS os itens" do Streamlit.
     """
     clear_items_sheet()
@@ -612,7 +615,6 @@ def clear_all_items() -> Dict[str, Any]:
 def get_diag_providers(re_gov: str, re_funda: str, re_corp: str, re_latam: str) -> Dict[str, Any]:
     """
     Executa o diagnóstico dos providers, semelhante à aba "🔬 Diagnóstico".
-
     Retorna um dicionário com:
     - "rows": lista de linhas (grupo, fonte, itens, tempo, erro, hint)
     - "logs": últimas 200 linhas da aba 'logs'
@@ -624,30 +626,34 @@ def get_diag_providers(re_gov: str, re_funda: str, re_corp: str, re_latam: str) 
     all_groups = {m.PROVIDER.get("group", "") for m in mods}
     for g in all_groups:
         key = _regex_key_for_group(g)
+        
+        # Pega a regex que veio da request (re_gov, etc) ou da config, ou default ""
         if _canon_group(g) == _canon_group("Governo/Multilaterais"):
-            pat = re_gov or DEFAULT_REGEX.get("RE_GOV", r".*")
-            fb = DEFAULT_REGEX.get("RE_GOV", r".*")
+            pat = re_gov
+            if pat is None: pat = DEFAULT_REGEX.get("RE_GOV", "")
         elif _canon_group(g) == _canon_group("Fundações e Prêmios"):
-            pat = re_funda or DEFAULT_REGEX.get("RE_FUNDA", r".*")
-            fb = DEFAULT_REGEX.get("RE_FUNDA", r".*")
+            pat = re_funda
+            if pat is None: pat = DEFAULT_REGEX.get("RE_FUNDA", "")
         elif _canon_group(g) == _canon_group("Corporativo/Aceleradoras"):
-            pat = re_corp or DEFAULT_REGEX.get("RE_CORP", r".*")
-            fb = DEFAULT_REGEX.get("RE_CORP", r".*")
+            pat = re_corp
+            if pat is None: pat = DEFAULT_REGEX.get("RE_CORP", "")
         elif _canon_group(g) == _canon_group("América Latina/Brasil"):
-            pat = re_latam or DEFAULT_REGEX.get("RE_LATAM", r".*")
-            fb = DEFAULT_REGEX.get("RE_LATAM", r".*")
+            pat = re_latam
+            if pat is None: pat = DEFAULT_REGEX.get("RE_LATAM", "")
         else:
-            pat = cfg.get(key, r".*")
-            fb = r".*"
-        re_map_diag[g] = _compile_re(pat, fallback=fb)
+            pat = cfg.get(key)
+            if pat is None: pat = ""
+
+        # Compila com fallback seguro apenas se erro de sintaxe
+        re_map_diag[g] = _compile_re(pat, fallback=r".+")
 
     rows = []
     import time
 
     for mod in mods:
         g = mod.PROVIDER.get("group", "")
-        key = _regex_key_for_group(g)
-        rgx = re_map_diag.get(g, _compile_re(cfg.get(key, r".*"), r".*"))
+        rgx = re_map_diag.get(g) # já compilado acima
+        
         t0 = time.time()
         err = ""
         n = 0

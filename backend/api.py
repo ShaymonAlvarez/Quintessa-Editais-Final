@@ -255,11 +255,11 @@ async def api_diag_providers(req: DiagRequest):
     """
     Executa diagnóstico dos providers (similar à aba de diagnóstico).
 
-    Permite informar regex customizado para GOVERNO/FUNDA/CORP/LATAM,
+    Permite informar regex customizado para GOVERNO/FUNDA/COORP/LATAM,
     ou usar valores vazios para cair nos defaults.
     """
     init_error_bus()
-    data = get_diag_providers(req.re_gov, req.re_funda, req.re_corp, req.re_latam)
+    data = get_diag_providers(req.re_gov, req.re_funda, req.re_coorp, req.re_latam)
     return {
         "diag": data,
         "errors": get_errors(),
