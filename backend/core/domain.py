@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Lógica de domínio principal do Editais Watcher:
-
 - Canonização de grupos e regex por grupo
 - Coleta de itens via providers
 - Migração de links relativos

@@ -1,9 +1,3 @@
-// -*- coding: utf-8 -*-
-// Lado cliente (frontend) do Editais Watcher.
-//
-// Faz chamadas ao backend FastAPI e renderiza a UI
-// de coleta/gestão de editais e a aba Perplexity.
-
 const state = {
   config: null,
   defaults: null,

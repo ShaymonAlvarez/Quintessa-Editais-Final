@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Acesso ao Google Sheets (gspread).
 

@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-# providers/latam_iieb.py
-
-# ============================================================
-# 1. IMPORTS COM FALLBACK (Para rodar Standalone)
-# ============================================================
 try:
     # Importação normal quando executado via sistema (backend)
     from .common import normalize, scrape_deadline_from_page, parse_date_any
@@ -21,26 +15,20 @@ import re
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
-# ============================================================
-# 2. METADADOS DO PROVIDER
-# ============================================================
 PROVIDER = {
     "name": "IIEB Notícias/Editais",
     "group": "América Latina / Brasil"
 }
 
-# URL alvo
 BASE_URL = "https://iieb.org.br/noticias/"
 
-# Palavras-chave obrigatórias (Case Insensitive)
-# Filtra apenas títulos que contenham algum destes termos
+# Palavras-chave obrigatórias para funcionamento do código
 KEYWORDS_REGEX = re.compile(
     r"(Edital|Editais|Chamada|Chamamento|Programa|Pr[eé]mio|Credenciamento)",
     re.IGNORECASE
 )
 
 # Lista de termos exatos para REMOVER (Menus e Institucional)
-# A verificação é feita com o título em minúsculo (exact match)
 DENY_LIST = {
     "programas",
     "edital"
@@ -55,9 +43,7 @@ HEADERS = {
     "Upgrade-Insecure-Requests": "1"
 }
 
-# ============================================================
 # 3. FUNÇÃO PRINCIPAL (FETCH)
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False):
     """
     Coleta editais do site do IIEB.
@@ -95,10 +81,8 @@ def fetch(regex, cfg, _debug: bool = False):
     seen_links = set()
 
     # Estratégia de Extração:
-    # O IIEB geralmente lista notícias em blocos. Vamos buscar todos os links <a> 
-    # e filtrar aqueles que parecem títulos de notícias/editais relevantes.
+    # O IIEB geralmente lista notícias em blocos. Por isso buscar todos os links <a> e filtrar aqueles que parecem títulos de notícias/editais relevantes.
     
-    # Pega todos os links da página
     anchors = soup.find_all("a", href=True)
     log(f"Total de links encontrados na página: {len(anchors)}")
 
@@ -130,7 +114,7 @@ def fetch(regex, cfg, _debug: bool = False):
             log(f"Ignorado pelo regex do usuário: {title[:30]}...")
             continue
 
-        # 5. Deduplicação
+        # 5. De duplicação
         if full_link in seen_links:
             continue
         seen_links.add(full_link)
@@ -169,9 +153,7 @@ def fetch(regex, cfg, _debug: bool = False):
     log(f"Coleta finalizada. Total de itens: {len(out)}")
     return out
 
-# ============================================================
 # 4. MODO STANDALONE (TESTE)
-# ============================================================
 if __name__ == "__main__":
     # Comando para rodar: python providers/latam_iieb.py
     import re

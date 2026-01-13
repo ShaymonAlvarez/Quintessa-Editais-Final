@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Coletor de erros simples (Error Bus).
 
