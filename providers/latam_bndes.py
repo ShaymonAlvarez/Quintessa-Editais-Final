@@ -57,7 +57,7 @@ def fetch(regex, cfg):
         # Como você pediu “só os links”, não vamos extrair deadline (evita cortes por MIN_DAYS).
         dl = None
 
-        # ⚠️ Mantendo exatamente a mesma estrutura e os mesmos nomes de campos no append:
+        # Mantendo exatamente a mesma estrutura e os mesmos nomes de campos no append:
         out.append({
             "source": PROVIDER["name"],
             "title": title,

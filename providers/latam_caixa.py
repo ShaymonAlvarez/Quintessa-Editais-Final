@@ -1,8 +1,3 @@
-# providers/latam_caixa_fsa.py
-
-# ============================================================
-# IMPORTS (com fallback para rodar como script direto)
-# ============================================================
 try:
     # caminho normal quando é usado pelo main.py (pacote providers)
     from .common import normalize, scrape_deadline_from_page
@@ -20,26 +15,17 @@ from typing import Optional, List, Dict, Any
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
-# ============================================================
-# METADADOS DO PROVIDER
-# ============================================================
 PROVIDER = {
     "name": "CAIXA — Fundo Socioambiental (Chamadas abertas)",
     "group": "América Latina / Brasil",
 }
 
-# Usado no painel de diagnóstico
 URL_HINT = "https://www.caixa.gov.br/sustentabilidade/fundo-socioambiental-caixa/chamadas-abertas/Paginas/default.aspx"
 
-# Flag global de debug (pode pôr True para testar rápido e depois voltar para False)
 DEBUG_DEFAULT = True
 
 START_URL = URL_HINT
 
-
-# ============================================================
-# HELPERS
-# ============================================================
 def _make_session() -> requests.Session:
     s = requests.Session()
     s.headers.update(
@@ -133,15 +119,12 @@ def _extract_title_for_anchor(a: BeautifulSoup, debug_log) -> str:
     - heading anterior (h1/h2/h3/h4)
     - ou texto do bloco pai
     """
-    # heading anterior
     h = a.find_previous(["h1", "h2", "h3", "h4"])
     if h:
         t = normalize(h.get_text())
         if t:
             debug_log("título via heading anterior:", t)
             return t
-
-    # bloco pai
     block = a
     for _ in range(5):
         if not block:
@@ -155,16 +138,10 @@ def _extract_title_for_anchor(a: BeautifulSoup, debug_log) -> str:
                 debug_log("título via bloco pai:", txt)
                 return txt
         block = block.parent
-
-    # fallback: texto do próprio link
     t = normalize(a.get_text())
     debug_log("título via texto do link:", t)
     return t
 
-
-# ============================================================
-# FUNÇÃO PRINCIPAL USADA PELO main.py
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False) -> List[Dict[str, Any]]:
     """
     Interface usada pelo main.py:
@@ -173,7 +150,6 @@ def fetch(regex, cfg, _debug: bool = False) -> List[Dict[str, Any]]:
     Retorna lista de dicts com:
         {source,title,link,deadline,published,agency,region,raw}
     """
-    # decide se roda em modo verboso
     debug_cfg = str(cfg.get("CAIXA_FSA_DEBUG", "0")).strip().lower() in (
         "1",
         "true",
@@ -202,16 +178,12 @@ def fetch(regex, cfg, _debug: bool = False) -> List[Dict[str, Any]]:
         return out
 
     soup = BeautifulSoup(r.text, "html.parser")
-
-    # 1) heurística baseada em headings (Edital / Chamada)
     calls_blocks = []
 
     for h in soup.find_all(["h1", "h2", "h3", "h4"]):
         title_txt = normalize(h.get_text() or "")
         if not _looks_like_call_title(title_txt):
             continue
-
-        # sobe até um bloco razoável
         block = h
         for _ in range(5):
             if not block:
@@ -236,7 +208,6 @@ def fetch(regex, cfg, _debug: bool = False) -> List[Dict[str, Any]]:
             return
         seen_links.add(link)
 
-        # deadline via helper genérico (pode devolver None)
         dl = scrape_deadline_from_page(link)
         log("OK:", title, "->", link, "| deadline:", dl)
 
@@ -246,14 +217,12 @@ def fetch(regex, cfg, _debug: bool = False) -> List[Dict[str, Any]]:
                 "title": title,
                 "link": link,
                 "deadline": dl,
-                "published": None,  # site não parece expor data clara
+                "published": None,  
                 "agency": "CAIXA",
                 "region": "Brasil",
                 "raw": {},
             }
         )
-
-    # adiciona itens usando os blocos detectados
     for title_txt, block in calls_blocks:
         link = _pick_best_link(block, START_URL, log)
         if link:
@@ -278,9 +247,7 @@ def fetch(regex, cfg, _debug: bool = False) -> List[Dict[str, Any]]:
     return out
 
 
-# ============================================================
-# TESTE RÁPIDO STANDALONE
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     """
     Teste rápido de retrievement SEM passar pelo Streamlit.

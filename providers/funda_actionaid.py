@@ -1,10 +1,7 @@
-# 1. IMPORTS COM FALLBACK (Para rodar Standalone e Integrado)
-# ============================================================
 try:
-    # Importação normal quando executado via sistema (backend)
     from .common import normalize, scrape_deadline_from_page, parse_date_any
 except ImportError:
-    # Fallback para rodar direto do terminal (Standalone)
+
     import os, sys
     ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if ROOT not in sys.path:
@@ -23,9 +20,6 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import re
 
-# ============================================================
-# 2. CONFIGURAÇÕES E METADADOS
-# ============================================================
 PROVIDER = {
     "name": "ActionAid",
     "group": "Fundações e Prêmios"
@@ -33,13 +27,13 @@ PROVIDER = {
 
 START_URL = "https://actionaid.org.br/trabalhe-conosco/"
 
-# Palavras-chave obrigatórias (Case Insensitive)
+# Palavras-chave obrigatórias para funcionamento do código
 KEYWORDS_FILTER = [
     "Edital", "Editais", "Chamada", "Chamamento", 
     "Programa", "Prémio", "Prêmio", "Credenciamento"
 ]
 
-# Headers para simular navegador real e evitar bloqueios (Error 403)
+# Cabeçalhos para simular um navegador real e evitar bloqueios de bot/cookies
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -47,9 +41,6 @@ HEADERS = {
     "Referer": "https://google.com"
 }
 
-# ============================================================
-# 3. FUNÇÃO PRINCIPAL (FETCH)
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False):
     """
     Coleta oportunidades do site ActionAid com filtro rigoroso.
@@ -78,9 +69,9 @@ def fetch(regex, cfg, _debug: bool = False):
     out = []
     seen_links = set()
 
-    # Procura todos os links.
+    # Procura todos os links
     # Nota: Sites Wordpress/Institucionais geralmente colocam os links de vagas dentro de <article> ou listas <li>
-    # Vamos pegar todos os 'a' e filtrar, é mais robusto contra mudanças de layout HTML.
+    # Vamos pegar todos os 'a' e filtrar, é mais robusto contra mudanças de layout HTML
     anchors = soup.find_all("a", href=True)
     
     log(f"Total de links brutos encontrados: {len(anchors)}")
@@ -142,16 +133,12 @@ def fetch(regex, cfg, _debug: bool = False):
     log(f"Coleta finalizada. Total de editais válidos: {len(out)}")
     return out
 
-# ============================================================
-# 4. MODO STANDALONE (TESTE)
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
-    # Para rodar: python providers/funda_actionaid.py
     import re
     
     print("\n--- TESTE STANDALONE: ACTIONAID ---\n")
     
-    # Regex permissiva para teste
     dummy_regex = re.compile(r".*", re.I)
     
     try:

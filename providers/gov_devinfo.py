@@ -1,14 +1,7 @@
-# -*- coding: utf-8 -*-
-# providers/gov_devinfo.py
-
 import re
 import time
 from datetime import datetime, timedelta
 from urllib.parse import urljoin
-
-# ============================================================
-# 1. IMPORTS HÍBRIDOS (Para rodar Standalone vs Sistema)
-# ============================================================
 try:
     from .common import normalize, scrape_deadline_from_page, parse_date_any
 except ImportError:
@@ -29,9 +22,6 @@ except ImportError:
     print("ERRO CRÍTICO: Playwright não instalado. Rode: pip install playwright && playwright install chromium")
     sync_playwright = None
 
-# ============================================================
-# 2. METADADOS DO PROVIDER
-# ============================================================
 PROVIDER = {
     "name": "DevInfo (RFPs)",
     "group": "Governo/Multilaterais"
@@ -39,6 +29,7 @@ PROVIDER = {
 
 START_URL = "https://devinfo.in/request-for-proposals/"
 
+# Palavras-chave obrigatórias para funcionamento do código
 KEYWORDS_FILTER = [
     "edital", "editais", "chamada", "chamamento", "programa", "prémio", "premio", "credenciamento",
     "request for proposal", "rfp", "call", "grant", "program", "award", "opportunity"
@@ -47,9 +38,6 @@ KEYWORDS_FILTER = [
 # Regex captura data no início (ex: "December 26, 2024 ...")
 RE_DATE_START = re.compile(r"^([A-Za-z]+\s+\d{1,2},?\s+\d{4})", re.IGNORECASE)
 
-# ============================================================
-# 3. FUNÇÃO PRINCIPAL (FETCH)
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False):
     if not sync_playwright:
         return []
@@ -170,9 +158,7 @@ def fetch(regex, cfg, _debug: bool = False):
     log(f"Total final coletado: {len(out)}")
     return out
 
-# ============================================================
-# 4. MODO STANDALONE (TESTE COM FILTRO DE 7 DIAS)
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     import re
     from datetime import datetime, timedelta

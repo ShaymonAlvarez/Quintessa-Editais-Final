@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
 import time
 from urllib.parse import urljoin
 
-# --- IMPORTS HÍBRIDOS ---
 try:
     from .common import normalize, parse_date_any
 except ImportError:
@@ -65,8 +63,7 @@ def fetch(regex, cfg):
 
             time.sleep(5) # Tempo extra para o grid terminar de desenhar
 
-            # 3. EXTRAÇÃO VIA JAVASCRIPT (SINTAXE CORRIGIDA)
-            # Usamos raw string (r"""...""") e evitamos regex literais complexos
+            # 3. EXTRAÇÃO VIA JAVASCRIPT 
             raw_data = page.evaluate(r"""() => {
                 const results = [];
                 // Pega TODAS as linhas de tabela da página
@@ -158,9 +155,7 @@ def fetch(regex, cfg):
 
     return unique_out
 
-# ============================================================
-# TESTE
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     import re
     import json

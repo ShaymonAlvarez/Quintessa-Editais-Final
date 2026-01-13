@@ -1,11 +1,7 @@
-# -*- coding: utf-8 -*-
 import re
 import time
 from urllib.parse import urljoin
 
-# ============================================================
-# 1. IMPORTS COM FALLBACK (Híbrido: Standalone vs Sistema)
-# ============================================================
 try:
     from .common import normalize, scrape_deadline_from_page, parse_date_any
 except ImportError:
@@ -29,9 +25,6 @@ except ImportError:
     print("ERRO: Playwright não instalado. Rode 'pip install playwright && playwright install chromium'")
     raise
 
-# ============================================================
-# 2. CONFIGURAÇÃO
-# ============================================================
 PROVIDER = {
     "name": "Fundación Avina",
     "group": "Fundações e Prêmios"
@@ -39,15 +32,12 @@ PROVIDER = {
 
 START_URL = "https://www.avina.net/pt/consultoria/"
 
-# Lista de palavras-chave OBRIGATÓRIAS (Case Insensitive)
+# Palavras-chave obrigatórias para funcionamento do código
 KEYWORDS_FILTER = [
     "Edital", "Editais", "Chamada", "Consultoria", "Chamamento", 
     "Programa", "Prémio", "Prêmio", "Credenciamento"
 ]
 
-# ============================================================
-# 3. FUNÇÃO PRINCIPAL (FETCH)
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False):
     """
     Coleta consultorias/editais da Avina.
@@ -175,9 +165,7 @@ def fetch(regex, cfg, _debug: bool = False):
     log(f"Total coletado: {len(out)}")
     return out
 
-# ============================================================
-# 4. MODO STANDALONE (TESTE)
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     import re
     import json

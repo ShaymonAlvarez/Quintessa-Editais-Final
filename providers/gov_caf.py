@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-# providers/gov_caf.py
-
-# ============================================================
-# 1. IMPORTS
-# ============================================================
 try:
     from .common import normalize, scrape_deadline_from_page, parse_date_any
 except ImportError:
@@ -18,9 +12,6 @@ import re
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
-# ============================================================
-# 2. CONFIGURAÇÃO
-# ============================================================
 PROVIDER = {
     "name": "CAF - Banco de Desenvolvimento da América Latina",
     "group": "Governo/Multilaterais"
@@ -28,7 +19,7 @@ PROVIDER = {
 
 START_URL = "https://www.caf.com/en/work-with-us/calls"
 
-# Palavras-chave (Inglês + Espanhol + Português)
+# Palavras-chave obrigatórias para funcionamento do código
 REQUIRED_KEYWORDS = [
     "call", "request", "program", "prize", "award", 
     "tender", "procurement", "consultancy", "proposal", "rfp",
@@ -40,9 +31,6 @@ HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
-# ============================================================
-# 3. FUNÇÃO PRINCIPAL
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False):
     debug_mode = _debug or str(cfg.get("CAF_DEBUG", "0")).lower() in ("1", "true", "yes")
 
@@ -72,7 +60,6 @@ def fetch(regex, cfg, _debug: bool = False):
     
     # Se a busca por classe falhar, pega todos os blocos que contenham link
     if not items:
-        # Fallback: procura divs que tenham links dentro
         items = soup.find_all('div')
 
     candidates = []
@@ -120,27 +107,18 @@ def fetch(regex, cfg, _debug: bool = False):
             continue
         seen.add(full_link)
 
-        # 3. Extração de Deadline (DIRETO DA LISTAGEM)
         deadline = None
         
-        # Procura o texto "Deadline:" dentro de todo o bloco do item
-        # O site mostra: "Deadline: January 19, 2026"
         block_text = item.get_text(" ", strip=True)
         
-        # Regex para capturar a data após a palavra Deadline
-        # Aceita formatos: "Deadline: January 07, 2026", "Deadline: 19/01/2026"
         match = re.search(r"Deadline:\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4}|\d{2}/\d{2}/\d{4})", block_text, re.IGNORECASE)
         
         if match:
             date_str = match.group(1)
             deadline = parse_date_any(date_str)
         else:
-            # Fallback: Procura qualquer data solta no bloco se tiver "Deadline" perto
             if "Deadline" in block_text:
                 deadline = parse_date_any(block_text)
-
-        # Se ainda assim for None, e o usuário quiser, podemos tentar deep scraping (opcional)
-        # Mas baseado no print, a listagem é suficiente.
 
         out.append({
             "source": PROVIDER["name"],
@@ -158,9 +136,7 @@ def fetch(regex, cfg, _debug: bool = False):
     log(f"Total final: {len(out)}")
     return out
 
-# ============================================================
-# TESTE
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     print(">>> TESTE CAF (DEADLINE DA LISTAGEM) <<<")
     # Usa um regex que pega tudo

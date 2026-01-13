@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
 import re
 import time
 from urllib.parse import urljoin
 
-# Configuração para rodar isolado ou como módulo
 try:
     from playwright.sync_api import sync_playwright
 except ImportError:
@@ -25,7 +23,6 @@ def fetch(regex, cfg, _debug: bool = False):
     seen_links = set()
 
     with sync_playwright() as p:
-        # Lança o navegador (headless=True para não abrir janela, False para ver acontecendo)
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
 
@@ -77,7 +74,7 @@ def fetch(regex, cfg, _debug: bool = False):
 
             if _debug: print(f"Itens brutos encontrados: {len(items_raw)}")
 
-            # 3. Filtragem (Python)
+            # Palavras-chave obrigatórias para funcionamento do código
             palavras_chave_permitidas = ['EDITAL', 'CHAMAMENTO', 'SELEÇÃO', 'CONVOCATÓRIA']
             palavras_chave_proibidas = ['PRÊMIO', 'PROGRAMA', 'CONCURSO', 'CREDENCIAMENTO']
 
@@ -89,7 +86,7 @@ def fetch(regex, cfg, _debug: bool = False):
                 if link in seen_links: continue
                 seen_links.add(link)
 
-                # --- LÓGICA DE FILTRO ---
+                # LÓGICA DE FILTRO 
                 title_upper = title.upper()
 
                 # Se tiver palavra proibida (ex: Prêmio), ignora imediatamente
@@ -97,7 +94,6 @@ def fetch(regex, cfg, _debug: bool = False):
                     continue
 
                 # Se NÃO tiver nenhuma palavra permitida (ex: Edital), ignora
-                # (Isso garante que só passamos o que você pediu)
                 if not any(good in title_upper for good in palavras_chave_permitidas):
                     continue
 
@@ -114,9 +110,7 @@ def fetch(regex, cfg, _debug: bool = False):
 
     return out
 
-# ============================================================
-# EXECUÇÃO NO TERMINAL
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     print("\n>>> INICIANDO FILTRO DE EDITAIS PROSAS <<<\n")
     

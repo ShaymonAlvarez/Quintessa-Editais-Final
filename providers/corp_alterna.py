@@ -1,5 +1,3 @@
-# 1. IMPORTS COM FALLBACK (Para rodar Standalone)
-# ============================================================
 try:
     # Importação normal quando executado via sistema (backend)
     from .common import normalize, scrape_deadline_from_page, parse_date_any
@@ -21,25 +19,19 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
-# ============================================================
-# 2. METADADOS DO PROVIDER
-# ============================================================
 PROVIDER = {
     "name": "Alterna",
-    "group": "Corporativo/Aceleradoras"  # Ajuste para o grupo que preferir
+    "group": "Corporativo/Aceleradoras"  
 }
 
 START_URL = "https://alterna.pro/trabaja-en-alterna/"
 
-# Headers para simular um navegador real e evitar bloqueios simples
+# Cabeçalhos para simular um navegador real e evitar bloqueios de bot/cookies
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 }
 
-# ============================================================
-# 3. FUNÇÃO PRINCIPAL (FETCH)
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False):
     """
     Coleta oportunidades do site Alterna.
@@ -69,10 +61,6 @@ def fetch(regex, cfg, _debug: bool = False):
     out = []
     seen_links = set()
 
-    # ESTRATÉGIA DE SELEÇÃO:
-    # O site pode mudar, então buscamos todos os links e filtramos
-    # aqueles que parecem relevantes ou estão dentro de listas/artigos.
-    # Você pode refinar o 'select' abaixo se quiser ser mais específico (ex: soup.select(".job-list a"))
     anchors = soup.find_all("a", href=True)
 
     log(f"Total de links encontrados (bruto): {len(anchors)}")
@@ -104,17 +92,14 @@ def fetch(regex, cfg, _debug: bool = False):
         if len(title) < 5:
             continue
 
-        # 5. Filtro REGEX (obrigatório para manter coerência com o sistema)
-        # Se o usuário configurou uma regex para esse grupo, usamos aqui.
+        
         if regex and not regex.search(title):
-            # Opcional: logar o que foi ignorado se estiver em debug
-            # log(f"Ignorado pelo regex: {title}")
             continue
 
         # 6. Extração de Metadados (Data/Preço)
         # Como a lista principal geralmente só tem o título, usamos a função helper
-        # scrape_deadline_from_page que visita a página do edital para tentar achar datas.
-        # Isso deixa o processo um pouco mais lento, mas muito mais preciso.
+        # scrape_deadline_from_page que visita a página do edital para tentar achar datas
+        # Isso deixa o processo um pouco mais lento, mas muito mais preciso
         deadline = scrape_deadline_from_page(full_link)
         
         # Tenta achar menção de valor no título (opcional)
@@ -138,11 +123,8 @@ def fetch(regex, cfg, _debug: bool = False):
     log(f"Coleta finalizada. Total de itens: {len(out)}")
     return out
 
-# ============================================================
-# 4. MODO STANDALONE (TESTE)
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
-    # Este bloco só roda se você chamar: python providers/corp_alterna.py
     import re
     import json
     

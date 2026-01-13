@@ -1,13 +1,6 @@
-# providers/latam_finep.py
-
-# ============================================================
-# IMPORTS (com fallback para rodar como script direto)
-# ============================================================
 try:
-    # caminho normal quando é usado pelo main.py (pacote providers)
     from .common import normalize, scrape_deadline_from_page
 except ImportError:
-    # fallback quando você roda o arquivo direto: python providers/latam_finep.py
     import os, sys
     ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if ROOT not in sys.path:
@@ -22,16 +15,10 @@ from urllib.parse import urljoin, urlparse
 
 PROVIDER = {"name": "FINEP Chamadas", "group": "América Latina / Brasil"}
 
-# Usado no painel de diagnóstico
 URL_HINT = "https://www.finep.gov.br/chamadas-publicas/chamadaspublicas?situacao=aberta"
 
-# Flag global de debug (pode pôr True para testar rápido e depois voltar para False)
 DEBUG_DEFAULT = False
 
-
-# ============================================================
-# HELPERS
-# ============================================================
 def _make_session() -> requests.Session:
     s = requests.Session()
     s.headers.update({
@@ -73,7 +60,7 @@ def _is_call_url(u: str) -> bool:
     return True
 
 
-# Fallback para varrer o HTML cru por URLs de chamada
+# Cabeçalhos para simular um navegador real e evitar bloqueios de bot/cookies
 DETAIL_RE = re.compile(
     r"/chamadas-publicas/[a-zA-Z0-9\-_\/\?=&]+",
     re.I,
@@ -127,10 +114,6 @@ def _scrape_title_from_detail(sess: requests.Session, url: str, debug: bool = Fa
             return t
     return ""
 
-
-# ============================================================
-# FUNÇÃO PRINCIPAL USADA PELO main.py
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False):
     """
     Interface usada pelo main.py:
@@ -141,7 +124,6 @@ def fetch(regex, cfg, _debug: bool = False):
     """
     START = "https://www.finep.gov.br/chamadas-publicas/chamadaspublicas?situacao=aberta"
 
-    # decide se roda em modo verboso
     debug_cfg = str(cfg.get("FINEP_DEBUG", "0")).strip().lower() in ("1", "true", "yes", "sim")
     debug = bool(_debug or DEBUG_DEFAULT or debug_cfg)
 
@@ -235,9 +217,7 @@ def fetch(regex, cfg, _debug: bool = False):
     return out
 
 
-# ============================================================
-# TESTE RÁPIDO STANDALONE
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     """
     Teste rápido de retrievement SEM passar pelo Streamlit.

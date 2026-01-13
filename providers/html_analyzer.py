@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 GUI simples para coletar artefatos de páginas (útil p/ SPAs):
 - <out>/requests.html               (HTML cru via requests)
@@ -30,7 +29,6 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
       "AppleWebKit/537.36 (KHTML, like Gecko) "
       "Chrome/124 Safari/537.36")
 
-# ----------------------- Helpers -----------------------
 def save_text(path: pathlib.Path, text: str, enc="utf-8"):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding=enc)
@@ -45,7 +43,6 @@ def abs_url(href: str, base: str) -> str | None:
         return h
     return urljoin(base, h)
 
-# ----------------------- Coleta (requests) -----------------------
 def step_requests(url: str, outdir: pathlib.Path, log):
     r = requests.get(url, timeout=60, headers={"User-Agent": UA})
     r.raise_for_status()
@@ -57,7 +54,6 @@ def step_requests(url: str, outdir: pathlib.Path, log):
     save_text(outdir / "requests_hrefs_sample.txt", sample)
     log(f"✓ requests_hrefs_sample.txt salvo ({min(100, len(hrefs))} hrefs)")
 
-# ----------------------- Coleta (Playwright) -----------------------
 def step_playwright(url: str, outdir: pathlib.Path, log):
     try:
         from playwright.sync_api import sync_playwright
@@ -145,7 +141,6 @@ def step_playwright(url: str, outdir: pathlib.Path, log):
         else:
             log("✓ page.har salvo (sem conteúdo embutido).")
 
-# ----------------------- Worker -----------------------
 def run_collector(url: str, outdir: str, log, done_cb):
     out = pathlib.Path(outdir)
     try:
@@ -159,7 +154,6 @@ def run_collector(url: str, outdir: str, log, done_cb):
         log(f"✗ Erro: {e}")
         done_cb(False, e)
 
-# ----------------------- GUI (Tkinter) -----------------------
 class App(tk.Tk):
     def __init__(self):
         super().__init__()

@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-# providers/gov_bond_uk.py
-
-# ============================================================
-# 1. IMPORTS COM FALLBACK
-# ============================================================
 try:
     from .common import normalize, scrape_deadline_from_page, parse_date_any
 except ImportError:
@@ -11,7 +5,6 @@ except ImportError:
     ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if ROOT not in sys.path:
         sys.path.insert(0, ROOT)
-    # Mock simples caso esteja rodando isolado
     try:
         from providers.common import normalize, scrape_deadline_from_page, parse_date_any
     except ImportError:
@@ -24,9 +17,6 @@ import re
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
-# ============================================================
-# 2. METADADOS
-# ============================================================
 PROVIDER = {
     "name": "Bond UK Funding",
     "group": "Governo/Multilaterais"
@@ -46,21 +36,14 @@ HEADERS = {
     "Sec-Ch-Ua-Platform": '"Windows"'
 }
 
-# MAPA DE PALAVRAS-CHAVE (PT -> EN)
-# O site é em inglês, então "Edital" não existe lá. Traduzimos para garantir resultados.
+# Cabeçalhos para simular um navegador real e evitar bloqueios de bot/cookies
 KEYWORDS_PT_EN = [
-    # Termos solicitados (PT)
     "edital", "chamada", "chamamento", "programa", "prémio", "premio", "credenciamento",
-    # Equivalentes (EN) - NECESSÁRIO para funcionar no Bond UK
     "grant", "fund", "opportunity", "award", "programme", "call", "trust", "foundation", "challenge", "fellowship"
 ]
 
-# Textos de link genéricos para ignorar (evita pegar botões "Leia mais" como título)
 GENERIC_LABELS = ["read more", "find out more", "apply", "view", "click here", "visit website", "more info", "details"]
 
-# ============================================================
-# 3. FUNÇÃO FETCH
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False):
     is_debug = _debug or str(cfg.get("BOND_DEBUG", "0")).lower() in ("1", "true", "yes")
 
@@ -84,11 +67,9 @@ def fetch(regex, cfg, _debug: bool = False):
     seen = set()
 
     # Tenta focar na área principal para evitar links de rodapé/menu
-    # Bond UK usa <main> ou <div class="content-area"> geralmente
     main_content = soup.find('main') or soup.find('div', id='content') or soup.body
 
     # Busca elementos que costumam ser títulos de cards (h3, h4 com links dentro)
-    # ou links diretos
     candidates = main_content.find_all("a", href=True)
     log(f"Links encontrados na área principal: {len(candidates)}")
 
@@ -109,10 +90,8 @@ def fetch(regex, cfg, _debug: bool = False):
         # --- ESTRATÉGIA DE TÍTULO ---
         title = normalize(raw_text)
 
-        # Se o link for genérico ("Read more"), tenta pegar o título do Heading anterior
         if not title or len(title) < 4 or title.lower() in GENERIC_LABELS:
-            # Sobe na árvore procurando um pai que CONTENHA um H2 ou H3
-            # Isso garante que pegamos o CARD inteiro, não apenas o wrapper do botão
+            # Isso garante que pegamos o CARD inteiro, não apenas o botão
             card = a.find_parent(lambda tag: tag.name in ['div', 'article', 'li'] and tag.find(['h2', 'h3', 'h4']))
             
             if card:
@@ -124,14 +103,11 @@ def fetch(regex, cfg, _debug: bool = False):
         if not title or len(title) < 5:
             continue
 
-        # --- FILTRO DE PALAVRAS-CHAVE ---
+        # Palavras-chave obrigatórias para funcionamento do código
         title_lower = title.lower()
         
-        # Verifica se tem alguma das palavras-chave (PT ou EN)
         has_keyword = any(k in title_lower for k in KEYWORDS_PT_EN)
         
-        # Se NÃO tem a palavra-chave e TAMBÉM não passou pelo regex do usuário (se houver), descarta.
-        # Mas se o usuário configurou um regex específico na interface, ele tem prioridade.
         if not has_keyword:
             if regex and regex.search(title):
                 pass # Passou pelo regex manual do usuário, então aceita
@@ -141,7 +117,7 @@ def fetch(regex, cfg, _debug: bool = False):
         if full_link in seen: continue
         seen.add(full_link)
 
-        # --- EXTRAÇÃO DE DADOS EXTRAS (DATA/VALOR) ---
+        # EXTRAÇÃO DE DADOS EXTRAS (DATA/VALOR) 
         deadline = None
         raw_info = {}
         
@@ -151,11 +127,9 @@ def fetch(regex, cfg, _debug: bool = False):
         if context_container:
             text_blob = context_container.get_text(" | ", strip=True)
             
-            # Tenta extrair data do texto do card
             deadline = parse_date_any(text_blob)
             
             # Tenta extrair valor (Libras, Dólar, Euro)
-            # Ex: £50,000, 10k GBP
             price_match = re.search(r"(?:£|GBP|€|USD|\$)\s?[\d,.]+(?:k|m|bn)?", text_blob, re.I)
             if price_match:
                 raw_info["valor_estimado"] = price_match.group(0)
@@ -181,14 +155,11 @@ def fetch(regex, cfg, _debug: bool = False):
     log(f"Total final: {len(out)}")
     return out
 
-# ============================================================
-# MODO STANDALONE (TESTE)
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     import re
     print("\n--- TESTE STANDALONE: BOND UK ---")
     
-    # Regex que aceita tudo para testarmos apenas o filtro do script
     dummy_re = re.compile(r".*")
     
     try:
@@ -200,7 +171,7 @@ if __name__ == "__main__":
             print("1. Se o site está bloqueando (tente abrir no navegador).")
             print("2. Se as palavras-chave em inglês (Grant, Fund...) estão na lista.")
         else:
-            for r in results[:5]: # Mostra os 5 primeiros
+            for r in results[:5]: 
                 print(f" > {r['title']}")
                 print(f"   Link: {r['link']}")
                 print(f"   Data: {r['deadline']}")

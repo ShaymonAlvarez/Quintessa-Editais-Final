@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-# providers/latam_bnb.py
-
-# ============================================================
-# 1. IMPORTS COM FALLBACK
-# ============================================================
 try:
     from .common import normalize, scrape_deadline_from_page, parse_date_any
 except ImportError:
@@ -20,12 +14,9 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import urllib3
 
-# Desabilita avisos de certificado SSL (comum em .gov.br)
+# Cabeçalho para simular um navegador real e evitar bloqueios de bot/cookies
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# ============================================================
-# 2. METADADOS DO PROVIDER
-# ============================================================
 PROVIDER = {
     "name": "Banco do Nordeste (BNB) - Convênios",
     "group": "América Latina / Brasil"
@@ -33,9 +24,6 @@ PROVIDER = {
 
 BASE_URL = "https://www.bnb.gov.br/conveniosweb/Convenente.ProgramaConvenio.Lista.aspx"
 
-# ============================================================
-# 3. LÓGICA DE COLETA (FETCH)
-# ============================================================
 def fetch(regex, cfg, _debug=False):
     # Verifica debug
     debug_mode = _debug or str(cfg.get("BNB_DEBUG", "0")).lower() in ("1", "true", "yes")
@@ -63,7 +51,6 @@ def fetch(regex, cfg, _debug=False):
 
     soup = BeautifulSoup(response.text, "html.parser")
 
-    # --- LÓGICA DE SELEÇÃO DE TABELA ---
     # Encontra TODAS as tabelas e escolhe a que tem mais linhas (>2)
     tables = soup.find_all("table")
     log(f"Total de tabelas encontradas no HTML: {len(tables)}")
@@ -132,7 +119,7 @@ def fetch(regex, cfg, _debug=False):
         row_text = normalize(row.get_text(" | "))
         deadline = parse_date_any(row_text)
         
-        # Se não achou na linha, tenta na página de destino (lento, mas preciso)
+        # Se não achou na linha, tenta na página de destino (lento, porém mais preciso)
         if not deadline:
             deadline = scrape_deadline_from_page(link_abs)
 
@@ -152,9 +139,7 @@ def fetch(regex, cfg, _debug=False):
     log(f"Total final coletado: {len(out)}")
     return out
 
-# ============================================================
-# 4. EXECUÇÃO STANDALONE
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     import json
     import re

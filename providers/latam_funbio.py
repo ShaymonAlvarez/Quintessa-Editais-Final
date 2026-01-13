@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from .common import normalize, scrape_deadline_from_page
@@ -141,7 +140,7 @@ def fetch(regex, cfg):
         urls |= _extract_slugs_from_next(html)
 
     # Nada de HEAD/GET de validação (preprod às vezes derruba)
-    # Também não filtramos por regex — devolvemos os links pedidas.
+    # Também não filtramos por regex — devolvemos os links pedidas
 
     out = []
     for href in sorted(urls):
@@ -152,7 +151,7 @@ def fetch(regex, cfg):
         except Exception:
             dl = None
 
-        # ⚠️ manter exatamente a estrutura e os nomes dos campos:
+        # Mantem exatamente a estrutura e os nomes dos campos:
         out.append({
             "source": PROVIDER["name"],
             "title": title[:180],

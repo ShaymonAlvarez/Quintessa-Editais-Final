@@ -1,10 +1,7 @@
 try:
-    # Importação normal quando executado via sistema (backend)
     from .common import normalize, scrape_deadline_from_page, parse_date_any
 except ImportError:
-    # Fallback para rodar direto do terminal: python providers/latam_iieb.py
     import os, sys
-    # Adiciona o diretório pai ao path para encontrar o pacote 'providers'
     ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if ROOT not in sys.path:
         sys.path.insert(0, ROOT)
@@ -28,13 +25,13 @@ KEYWORDS_REGEX = re.compile(
     re.IGNORECASE
 )
 
-# Lista de termos exatos para REMOVER (Menus e Institucional)
+# Cabeçalhos para simular um navegador real e evitar bloqueios de bot/cookies
 DENY_LIST = {
     "programas",
     "edital"
 }
 
-# Header padrão para simular navegador e evitar bloqueios (403/WAF)
+# + cabeçalhos para simular um navegador real e evitar bloqueios de bot/cookies
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -43,7 +40,6 @@ HEADERS = {
     "Upgrade-Insecure-Requests": "1"
 }
 
-# 3. FUNÇÃO PRINCIPAL (FETCH)
 def fetch(regex, cfg, _debug: bool = False):
     """
     Coleta editais do site do IIEB.
@@ -53,8 +49,7 @@ def fetch(regex, cfg, _debug: bool = False):
         cfg: Configurações globais.
         _debug: Flag para verbosidade (usada no teste standalone).
     """
-    
-    # Verifica debug (pela config ou flag manual)
+
     is_debug = _debug or str(cfg.get("IIEB_DEBUG", "0")).lower() in ("1", "true", "yes")
 
     def log(*args):
@@ -63,13 +58,10 @@ def fetch(regex, cfg, _debug: bool = False):
 
     log(f"Iniciando coleta em: {BASE_URL}")
 
-    # Cria sessão para persistir cookies e headers
     session = requests.Session()
     session.headers.update(HEADERS)
 
     try:
-        # verify=False pode ser usado se houver erro de SSL, mas geralmente não precisa em sites públicos bem configurados.
-        # timeout=60 garante que não trave se o site estiver lento.
         response = session.get(BASE_URL, timeout=60)
         response.raise_for_status()
     except Exception as e:
@@ -79,9 +71,6 @@ def fetch(regex, cfg, _debug: bool = False):
     soup = BeautifulSoup(response.text, "html.parser")
     out = []
     seen_links = set()
-
-    # Estratégia de Extração:
-    # O IIEB geralmente lista notícias em blocos. Por isso buscar todos os links <a> e filtrar aqueles que parecem títulos de notícias/editais relevantes.
     
     anchors = soup.find_all("a", href=True)
     log(f"Total de links encontrados na página: {len(anchors)}")
@@ -153,15 +142,14 @@ def fetch(regex, cfg, _debug: bool = False):
     log(f"Coleta finalizada. Total de itens: {len(out)}")
     return out
 
-# 4. MODO STANDALONE (TESTE)
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     # Comando para rodar: python providers/latam_iieb.py
     import re
     import json
     
-    print("\n--- RODANDO EM MODO TESTE (STANDALONE) ---\n")
+    print("\nRODANDO EM MODO TESTE (STANDALONE)\n")
     
-    # Regex "pega-tudo" para teste (simula o usuário não ter filtrado nada específico)
     dummy_regex = re.compile(r".*", re.I)
     dummy_cfg = {"IIEB_DEBUG": "1"} # Força debug
 

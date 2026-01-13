@@ -11,7 +11,6 @@ except ImportError:
         sys.path.insert(0, ROOT)
     from providers.common import normalize, parse_date_any
 
-# Verifica instalação do Playwright
 try:
     from playwright.sync_api import sync_playwright
 except ImportError:
@@ -98,7 +97,7 @@ def fetch(regex, cfg):
             
             print(f"[UNDP Web] Linhas brutas encontradas: {len(raw_data)}")
             
-            # DEBUG: Se vier 0, tira um print para vermos o que houve
+            # TESTEE DEBUG: Se vier 0, tira um print para vermos o que houve
             if len(raw_data) == 0:
                 page.screenshot(path="undp_debug.png")
                 print("[UNDP Web] 0 itens. Screenshot salvo em 'undp_debug.png'")
@@ -162,9 +161,7 @@ def fetch(regex, cfg):
 
     return unique_out
 
-# ============================================================
-# TESTE STANDALONE
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     import re
     import json

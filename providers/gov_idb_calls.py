@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-# providers/gov_idb_calls.py
-
-# ============================================================
-# BLOCO DE IMPORTAÇÃO
-# ============================================================
 import re
 import os
 import sys
@@ -28,16 +22,10 @@ except ImportError:
         sys.path.insert(0, ROOT)
     from providers.common import normalize, scrape_deadline_from_page
 
-# ============================================================
-# METADADOS
-# ============================================================
 PROVIDER = {"name": "IDB Calls for Proposals", "group": "Governo/Multilaterais"}
 
 START_URL = "https://www.iadb.org/en/how-we-can-work-together/calls-proposals"
 
-# ============================================================
-# FUNÇÃO PRINCIPAL
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False):
     """
     Coleta editais do IDB usando curl_cffi para evitar erro 403.
@@ -146,9 +134,7 @@ def fetch(regex, cfg, _debug: bool = False):
     return out
 
 
-# ============================================================
-# TESTE STANDALONE
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     print("\n>>> TESTE STANDALONE: IDB CALLS (COM CURL_CFFI) <<<\n")
     

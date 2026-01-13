@@ -1,9 +1,3 @@
-# providers/latam_fapesp.py
-# -*- coding: utf-8 -*-
-
-# ============================================================
-# IMPORTS (com fallback para rodar como script direto/standalone)
-# ============================================================
 try:
     from .common import normalize, parse_date_any
 except ImportError:
@@ -19,9 +13,6 @@ from typing import Optional, List, Dict, Any
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
-# ============================================================
-# CONFIGURAÇÃO DO PROVIDER
-# ============================================================
 PROVIDER = {
     "name": "FAPESP Chamadas",
     "group": "América Latina / Brasil"
@@ -29,25 +20,19 @@ PROVIDER = {
 
 URL_HINT = "https://fapesp.br/chamadas/"
 
-# Palavras-chave para validar se é um link de edital mesmo
+# Palavras-chave obrigatórias para funcionamento do código
 KEYWORDS_REGEX = re.compile(
     r"(Edital|Editais|Chamada|Chamamento|Programa|Pr[êe]mio|Credenciamento)",
     re.I
 )
 
 # Regex Específicos para encontrar datas no texto da FAPESP
-# Ex: "A data-limite para submissão é 1º de julho"
-# Ex: "Prazo para recebimento de propostas: 30 de abril de 2025"
 FAPESP_DATE_PATTERNS = [
     re.compile(r"data-limite\s+(?:para|de)\s+(?:submissão|envio|recebimento).*?(\d{1,2}º?[\/\s]+de\s+[A-Za-zç]+\s*(?:de\s+\d{4})?)", re.I),
     re.compile(r"recebimento\s+de\s+propostas\s+até\s+(\d{1,2}º?[\/\s]+de\s+[A-Za-zç]+\s*(?:de\s+\d{4})?)", re.I),
     re.compile(r"prazo\s+para\s+(?:submissão|envio).*?(\d{1,2}º?[\/\s]+de\s+[A-Za-zç]+\s*(?:de\s+\d{4})?)", re.I),
     re.compile(r"encerramento:?\s*(\d{1,2}º?[\/\s]+de\s+[A-Za-zç]+\s*(?:de\s+\d{4})?)", re.I),
 ]
-
-# ============================================================
-# HELPERS
-# ============================================================
 def _make_session() -> requests.Session:
     s = requests.Session()
     s.headers.update({
@@ -80,7 +65,7 @@ def _scrape_fapesp_deadline(session: requests.Session, url: str) -> Optional[str
         html = r.text
         soup = BeautifulSoup(html, "html.parser")
         
-        # Foca no texto principal (evita menus)
+        # Cabeçalhos para simular um navegador real e evitar bloqueios de bot/cookies
         main_text = soup.get_text(" ", strip=True)
         
         # 1. Tenta Regex Específico FAPESP
@@ -94,16 +79,11 @@ def _scrape_fapesp_deadline(session: requests.Session, url: str) -> Optional[str
                     return dt.isoformat()
 
         # 2. Se falhar, tenta procurar tabelas comuns
-        # Muitas vezes a FAPESP põe uma tabela com "Data Limite" na primeira coluna
-        # (Lógica simplificada de varredura)
-        
+        # Muitas vezes a FAPESP põe uma tabela com "Data Limite" na primeira coluna        
     except Exception:
         pass
     return None
 
-# ============================================================
-# FUNÇÃO FETCH
-# ============================================================
 def fetch(regex: re.Pattern, cfg: Dict[str, Any], _debug: bool = False) -> List[Dict[str, Any]]:
     debug = _debug or str(cfg.get("FAPESP_DEBUG", "0")).lower() in ("1", "true")
     def log(*args):
@@ -129,8 +109,6 @@ def fetch(regex: re.Pattern, cfg: Dict[str, Any], _debug: bool = False) -> List[
 
     if not content_area:
         return []
-
-    # Itera sobre links
     for a in content_area.find_all("a", href=True):
         raw_title = normalize(a.get_text())
         link = _absolutize(a["href"], base_url)
@@ -164,9 +142,7 @@ def fetch(regex: re.Pattern, cfg: Dict[str, Any], _debug: bool = False) -> List[
 
     return items
 
-# ============================================================
-# STANDALONE TEST
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     print("=== TESTE FAPESP (Busca profunda de Deadline) ===")
     res = fetch(re.compile(".*"), {}, _debug=True)

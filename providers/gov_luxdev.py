@@ -1,13 +1,7 @@
-# -*- coding: utf-8 -*-
-# providers/gov_luxdev.py
-
 import re
 import time
 from urllib.parse import urljoin
 
-# ============================================================
-# 1. IMPORTS HÍBRIDOS
-# ============================================================
 try:
     from .common import normalize, parse_date_any
 except ImportError:
@@ -23,9 +17,6 @@ except ImportError:
     sync_playwright = None
     print("ERRO: Playwright não instalado.")
 
-# ============================================================
-# 2. CONFIGURAÇÃO
-# ============================================================
 PROVIDER = {
     "name": "LuxDev Tenders",
     "group": "Governo/Multilaterais"
@@ -33,16 +24,13 @@ PROVIDER = {
 
 START_URL = "https://luxdev.lu/en/tenders/call-tenders"
 
-# Termos que OBRIGATORIAMENTE devem existir no título
+# Cabeçalhos para simular um navegador real e evitar bloqueios de bot/cookies
 KEYWORDS_FILTER = [
-    # Solicitados (PT)
     "edital", "editais", "chamada", "chamamento", "programa", "prémio", "premio", "credenciamento",
-    # Necessários para o site (EN/FR)
     "call", "tender", "request", "appel", "offre", "procurement", "consulting", "services", "works", "goods"
 ]
 
-# LISTA DE BLOQUEIO: Títulos exatos de menus/botões que devem ser ignorados
-# Mesmo que contenham palavras-chave acima, se estiverem aqui, serão removidos.
+# Cabeçalhos para simular um navegador real e evitar bloqueios de bot/cookies
 DENY_LIST = [
     "search tenders",
     "call for tenders",
@@ -54,12 +42,8 @@ DENY_LIST = [
     "previous page"
 ]
 
-# Regex para capturar data no formato visto no print: "Deadline: 19.01.2026"
 RE_DEADLINE_TEXT = re.compile(r"Deadline:?\s*(\d{2}[./-]\d{2}[./-]\d{4})", re.IGNORECASE)
 
-# ============================================================
-# 3. FUNÇÃO FETCH
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False):
     if not sync_playwright:
         return []
@@ -111,7 +95,7 @@ def fetch(regex, cfg, _debug: bool = False):
                     if not href_raw or not text_raw:
                         continue
                     
-                    # --- FILTRO 1: Remover URLs de sistema ---
+                    # FILTRO 1: Remover URLs de sistema
                     # Ignora links de filtro do Drupal (?f%5B0...)
                     if "?" in href_raw or "%" in href_raw:
                         continue
@@ -120,7 +104,7 @@ def fetch(regex, cfg, _debug: bool = False):
                     if any(x in href_raw for x in ["/contact", "/about", "linkedin", "twitter"]):
                         continue
 
-                    # --- FILTRO 2: Tratamento do Título ---
+                    # FILTRO 2: Tratamento do Título 
                     title = normalize(text_raw)
                     title_lower = title.lower()
 
@@ -181,9 +165,7 @@ def fetch(regex, cfg, _debug: bool = False):
     log(f"Total final coletado: {len(out)}")
     return out
 
-# ============================================================
-# MODO TESTE
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     print("\n--- RODANDO EM MODO TESTE (LUXDEV V5 - BLOCKLIST) ---\n")
     dummy_regex = re.compile(r".*", re.I)

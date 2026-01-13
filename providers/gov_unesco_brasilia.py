@@ -1,31 +1,22 @@
-# -*- coding: utf-8 -*-
 import re
 import time
 from urllib.parse import urljoin
 
-# ============================================================
-# 1. IMPORTS COM FALLBACK (Híbrido: Standalone vs Sistema)
-# ============================================================
 try:
     from .common import normalize, parse_date_any
 except ImportError:
     import os, sys
-    # Adiciona o diretório pai ao path para encontrar o pacote 'providers'
     ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if ROOT not in sys.path:
         sys.path.insert(0, ROOT)
     from providers.common import normalize, parse_date_any
 
-# Tenta importar Playwright (necessário para sites dinâmicos como esse)
 try:
     from playwright.sync_api import sync_playwright
 except ImportError:
     print("ERRO: Playwright não instalado. Rode 'pip install playwright && playwright install chromium'")
     raise
 
-# ============================================================
-# 2. METADADOS DO PROVIDER
-# ============================================================
 PROVIDER = {
     "name": "UNESCO Brasília - Processos Seletivos",
     "group": "Governo/Multilaterais"
@@ -33,16 +24,12 @@ PROVIDER = {
 
 BASE_URL = "https://roster.brasilia.unesco.org/app/selection-process-list"
 
-# ============================================================
-# 3. LÓGICA DE COLETA (FETCH)
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False):
     """
     Coleta editais da UNESCO Brasília usando Playwright.
     Aceita a flag _debug para imprimir logs detalhados (usado no modo standalone).
     """
     
-    # Verifica se o debug está ativado pela config ou pelo argumento
     is_debug = _debug or str(cfg.get("UNESCO_DEBUG", "0")).lower() in ("1", "true", "yes")
 
     def log(*args):
@@ -81,7 +68,6 @@ def fetch(regex, cfg, _debug: bool = False):
                 log("Timeout aguardando seletor específico. Tentando extrair assim mesmo...")
 
             # 3. Extração via JavaScript (Mais robusto para SPAs)
-            # Esse script roda DENTRO do navegador e devolve o JSON para o Python
             raw_data = page.evaluate(r"""() => {
                 const results = [];
                 // Tenta pegar os elementos que parecem ser os cards de edital
@@ -119,22 +105,18 @@ def fetch(regex, cfg, _debug: bool = False):
             return []
         
         browser.close()
-
-        # 4. Processamento dos dados no Python
         seen_links = set()
         
         for item in raw_data:
             title = normalize(item['title'])
             full_text = normalize(item['full_text'])
             
-            # Filtro de Regex (padrão do sistema)
             if regex and not regex.search(title) and not regex.search(full_text):
                 continue
                 
             # Tratamento do Link
             link_rel = item['href']
             if not link_rel:
-                # Se não achou href, o link pode ser a própria base (SPA)
                 full_link = BASE_URL
             else:
                 full_link = urljoin(BASE_URL, link_rel)
@@ -151,13 +133,11 @@ def fetch(regex, cfg, _debug: bool = False):
                 # Assume a última data encontrada como prazo (comum em editais: publ... prazo)
                 deadline = parse_date_any(dates[-1])
 
-            # Extração de Agência/Projeto (se disponível no texto)
-            # Ex: "Projeto 914BRZ..."
             agency = "UNESCO"
             if "Projeto" in full_text:
                 parts = full_text.split("Projeto")
                 if len(parts) > 1:
-                    proj_code = parts[1].split()[0] # Pega a primeira palavra após 'Projeto'
+                    proj_code = parts[1].split()[0] 
                     agency = f"UNESCO - Proj {proj_code}"
 
             item_out = {
@@ -165,7 +145,7 @@ def fetch(regex, cfg, _debug: bool = False):
                 "title": title[:200],
                 "link": full_link,
                 "deadline": deadline,
-                "published": None, # Sites SPA raramente mostram data de publicação fácil
+                "published": None, 
                 "agency": agency,
                 "region": "Brasil",
                 "raw": {
@@ -179,23 +159,13 @@ def fetch(regex, cfg, _debug: bool = False):
     log(f"Total final: {len(out)}")
     return out
 
-# ============================================================
-# 4. EXECUÇÃO STANDALONE (TESTE)
-# ============================================================
-if __name__ == "__main__":
-    # Este bloco permite rodar o arquivo sozinho para testar:
-    # python providers/gov_unesco_brasilia.py
-    
+if __name__ == "__main__":    
     print("\n--- TESTE STANDALONE: UNESCO BRASÍLIA ---\n")
     
-    # Regex genérico que aceita tudo
     dummy_regex = re.compile(r".*", re.IGNORECASE)
-    
-    # Configuração vazia, mas ativamos o debug manual na chamada
     dummy_cfg = {}
 
     try:
-        # Chama a função fetch com _debug=True para ver os prints
         results = fetch(dummy_regex, dummy_cfg, _debug=True)
         
         print("\n" + "="*50)

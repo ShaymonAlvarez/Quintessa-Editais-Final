@@ -1,23 +1,13 @@
-# -*- coding: utf-8 -*-
-# providers/funda_freedomfund.py
-
 import re
 import time
 from urllib.parse import urljoin
-
-# ============================================================
-# 1. IMPORTS HÍBRIDOS (Suporte a Standalone e Sistema)
-# ============================================================
 try:
-    # Importação relativa funciona quando rodado via main.py
     from .common import normalize, parse_date_any, scrape_deadline_from_page
 except ImportError:
-    # Fallback para rodar direto do terminal (python providers/funda_freedomfund.py)
     import os, sys
     ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if ROOT not in sys.path:
         sys.path.insert(0, ROOT)
-    # Mock simples caso common não seja encontrado no teste isolado
     try:
         from providers.common import normalize, parse_date_any, scrape_deadline_from_page
     except ImportError:
@@ -25,16 +15,12 @@ except ImportError:
         def parse_date_any(x): return None
         def scrape_deadline_from_page(x): return None
 
-# Tenta importar Playwright
 try:
     from playwright.sync_api import sync_playwright
 except ImportError:
     sync_playwright = None
     print("AVISO: Playwright não instalado. O provider Freedom Fund pode não funcionar corretamente.")
 
-# ============================================================
-# 2. CONFIGURAÇÃO
-# ============================================================
 PROVIDER = {
     "name": "The Freedom Fund",
     "group": "Fundações e Prêmios"
@@ -42,20 +28,14 @@ PROVIDER = {
 
 START_URL = "https://www.freedomfund.org/careers/"
 
-# Filtros solicitados (PT) + Equivalentes em Inglês (pois o site é EN)
+# Palavras-chave obrigatórias para funcionamento do código
 KEYWORDS_FILTER = [
-    # Termos solicitados (PT)
     "edital", "propostas", "propostas", "editais", "chamada", "chamamento", "programa", "prémio", "premio", "credenciamento",
-    # Termos técnicos equivalentes no site (EN) para garantir que funcione
     "call", "request for proposals", "rfp", "grant", "consultancy", "tender", "opportunity", "program"
 ]
 
-# Regex para tentar capturar data no texto curto (ex: Deadline: 25 Jan 2025)
 RE_DEADLINE_TEXT = re.compile(r"(?:Deadline|Closing date)[:\.]?\s*(\d{1,2}\s+[A-Za-z]+\s+\d{4}|\d{2}/\d{2}/\d{4})", re.IGNORECASE)
 
-# ============================================================
-# 3. FUNÇÃO FETCH
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False):
     """
     Coleta oportunidades do Freedom Fund.
@@ -106,7 +86,6 @@ def fetch(regex, cfg, _debug: bool = False):
             # Espera carregar a lista de vagas/editais
             time.sleep(3)
 
-            # --- EXTRAÇÃO ---
             # Pega todos os links da área principal (evita header/footer se possível)
             # O site usa classes como 'careers-list' ou similar, mas vamos pegar links genéricos para garantir
             all_links = page.locator("a[href]").all()
@@ -199,9 +178,7 @@ def fetch(regex, cfg, _debug: bool = False):
     log(f"Total final coletado: {len(out)}")
     return out
 
-# ============================================================
-# 4. MODO TESTE (STANDALONE)
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     print("\n>>> TESTE STANDALONE: THE FREEDOM FUND <<<\n")
     

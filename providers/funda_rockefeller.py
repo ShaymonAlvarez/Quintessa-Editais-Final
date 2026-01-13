@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-# providers/funda_rockefeller.py
-
-# ============================================================
-# 1. IMPORTS COM FALLBACK
-# ============================================================
 try:
     from .common import normalize, scrape_deadline_from_page, parse_date_any
 except ImportError:
@@ -24,9 +18,6 @@ import re
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, unquote
 
-# ============================================================
-# 2. CONFIGURAÇÃO
-# ============================================================
 PROVIDER = {
     "name": "Rockefeller Foundation (RFPs)",
     "group": "Fundações e Prêmios"
@@ -40,9 +31,6 @@ HEADERS = {
     "Referer": "https://www.rockefellerfoundation.org/",
 }
 
-# ============================================================
-# 3. LÓGICA DE EXTRAÇÃO
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False):
     is_debug = _debug or str(cfg.get("ROCKEFELLER_DEBUG", "0")).lower() in ("1", "true", "yes")
 
@@ -66,7 +54,6 @@ def fetch(regex, cfg, _debug: bool = False):
     out = []
     seen_links = set()
 
-    # Busca links candidatos
     candidate_links = soup.find_all("a", href=True)
     
     log(f"Links totais na página: {len(candidate_links)}")
@@ -101,11 +88,9 @@ def fetch(regex, cfg, _debug: bool = False):
         except:
             title = "Edital Rockefeller (Erro ao extrair título)"
 
-        # Se ficou muito curto ou vazio, tenta fallback visual (raro acontecer nesse site)
         if len(title) < 5:
             title = "Edital Rockefeller Foundation"
 
-        # 3. FILTRO REGEX
         if regex and not regex.search(title):
             log(f"Ignorado por regex: {title}")
             continue
@@ -114,7 +99,7 @@ def fetch(regex, cfg, _debug: bool = False):
             continue
         seen_links.add(full_link)
 
-        # 4. EXTRAÇÃO DE METADADOS (Contexto visual para Data/Valor)
+        # 3. Contexto visual para Data/Valor
         # Ainda usamos o contexto HTML para tentar achar a data e o valor no texto descritivo
         context_text = ""
         # Tenta pegar o container pai ou avô para ler a descrição
@@ -128,7 +113,6 @@ def fetch(regex, cfg, _debug: bool = False):
         deadline = parse_date_any(context_text)
         
         raw_data = {}
-        # Regex para achar valores monetários
         price_match = re.search(r"\$[\d,]+(\.\d{2})?\s*(?:million|billion|k)?", context_text, re.IGNORECASE)
         if price_match:
             raw_data["estimated_value"] = price_match.group(0)
@@ -150,9 +134,7 @@ def fetch(regex, cfg, _debug: bool = False):
     log(f"Total de editais válidos: {len(out)}")
     return out
 
-# ============================================================
-# 4. TESTE STANDALONE
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     import re
     CYAN = "\033[96m"

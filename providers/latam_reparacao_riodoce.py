@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-# providers/latam_reparacao_riodoce.py
-
-# ============================================================
-# 1. IMPORTS COM FALLBACK
-# ============================================================
 import time
 import re
 from urllib.parse import urljoin
@@ -20,7 +14,6 @@ except ImportError:
         from providers.common import normalize, parse_date_any
     except ImportError:
         def normalize(x): return " ".join(x.split()) if x else ""
-        # Mock simples para data se a lib oficial falhar no teste standalone
         def parse_date_any(x): 
             if not x: return None
             # Tenta formatos básicos PT-BR
@@ -33,10 +26,6 @@ try:
 except ImportError:
     print("ERRO: Playwright não instalado.")
     raise
-
-# ============================================================
-# 2. METADADOS
-# ============================================================
 PROVIDER = {
     "name": "Reparação Bacia Rio Doce",
     "group": "América Latina / Brasil"
@@ -49,12 +38,8 @@ KEYWORDS_PERMITIDAS = [
     "programa", "prémio", "prêmio", "credenciamento"
 ]
 
-# Configuração da Regra de Negócio (Minimo de dias para ser considerado)
 MIN_DAYS_TO_EXPIRE = 7 
 
-# ============================================================
-# 3. HELPER: BUSCA E CONVERSÃO DE DATA
-# ============================================================
 def extrair_data_contextual(texto):
     """
     Busca datas próximas a palavras de encerramento.
@@ -62,7 +47,6 @@ def extrair_data_contextual(texto):
     if not texto: return None
     texto_lower = texto.lower()
     
-    # Regex flexível para capturar 10/10/2024 ou 10 de outubro de 2024
     regex_data = r"(\d{2}[/.-]\d{2}[/.-]\d{2,4}|\d{1,2}\s+de\s+[a-zç]+\s+de\s+\d{4})"
     gatilhos = ["inscriç", "prazo", "até", "limite", "encerramento", "recebimento", "final", "vigência"]
     
@@ -96,7 +80,6 @@ def validar_regra_7_dias(data_iso):
         dt_alvo = datetime.strptime(data_iso, "%Y-%m-%d")
         dt_hoje = datetime.now()
         
-        # Zera horas para comparação justa de datas
         dt_alvo = dt_alvo.replace(hour=23, minute=59, second=59)
         dt_hoje = dt_hoje.replace(hour=0, minute=0, second=0)
         
@@ -113,9 +96,6 @@ def validar_regra_7_dias(data_iso):
     except ValueError:
         return False, "Formato de data inválido"
 
-# ============================================================
-# 4. LÓGICA DE COLETA (FETCH)
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False):
     is_debug = _debug or str(cfg.get("RIODOCE_DEBUG", "0")).lower() in ("1", "true", "yes")
 
@@ -139,12 +119,12 @@ def fetch(regex, cfg, _debug: bool = False):
         )
         
         try:
-            # --- FASE 1: Coleta dos Links na Home ---
+            # FASE 1: Coleta dos Links na Home 
             page = context.new_page()
             log("Acessando vitrine...")
             page.goto(START_URL, timeout=60000, wait_until="domcontentloaded")
             
-            # Aceita Cookies
+            # Cabeçalhos para simular um navegador real e evitar bloqueios de bot/cookies
             try:
                 page.locator("button, a").filter(has_text=re.compile(r"Aceitar|Concordo", re.I)).first.click(timeout=2000)
             except: pass
@@ -197,7 +177,7 @@ def fetch(regex, cfg, _debug: bool = False):
 
             log(f"Candidatos iniciais: {len(items_to_visit)}")
 
-            # --- FASE 2: Deep Scraping e Validação de Datas ---
+            # FASE 2: Deep Scraping p/ validação de Datas 
             for i, item in enumerate(items_to_visit):
                 title = item['title']
                 link = item['link']
@@ -248,16 +228,12 @@ def fetch(regex, cfg, _debug: bool = False):
 
     return out
 
-# ============================================================
-# 5. TESTE STANDALONE
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     import re
     print(f"\n--- TESTE: REPARAÇÃO RIO DOCE (FILTRO > {MIN_DAYS_TO_EXPIRE} DIAS) ---\n")
     
-    # Simula parse de data em PT para o teste funcionar sem o backend
     def parse_date_any(x):
-        # Mapeamento simples de meses para teste
         meses = {
             "janeiro": "01", "fevereiro": "02", "março": "03", "abril": "04",
             "maio": "05", "junho": "06", "julho": "07", "agosto": "08",

@@ -1,16 +1,7 @@
-# -*- coding: utf-8 -*-
-# providers/gov_onu_vendor.py
-
-# ============================================================
-# 1. IMPORTS COM FALLBACK (Para rodar Standalone)
-# ============================================================
 try:
-    # Importação normal quando executado via sistema (backend)
     from .common import normalize, parse_date_any
 except ImportError:
-    # Fallback para rodar direto do terminal: python providers/gov_onu_vendor.py
     import os, sys
-    # Adiciona o diretório pai ao path para encontrar o pacote 'providers'
     ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if ROOT not in sys.path:
         sys.path.insert(0, ROOT)
@@ -21,27 +12,20 @@ import re
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
-# ============================================================
-# 2. METADADOS DO PROVIDER
-# ============================================================
 PROVIDER = {
     "name": "ONU Vendor Portal (Brasil)",
     "group": "Governo/Multilaterais"
 }
 
-# URL alvo
 BASE_URL = "https://vendor.un.org.br"
 START_URL = "https://vendor.un.org.br/processes"
 
-# Header padrão para evitar bloqueios simples
+# Cabeçalhos para simular um navegador real e evitar bloqueios de bot/cookies
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 }
 
-# ============================================================
-# 3. FUNÇÃO PRINCIPAL (FETCH)
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False):
     """
     Coleta editais do portal Vendor ONU (Brasil).
@@ -151,9 +135,7 @@ def fetch(regex, cfg, _debug: bool = False):
     log(f"Total coletado: {len(out)} itens.")
     return out
 
-# ============================================================
-# 4. MODO STANDALONE (TESTE)
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     # Comando para teste: python providers/gov_onu_vendor.py
     import re

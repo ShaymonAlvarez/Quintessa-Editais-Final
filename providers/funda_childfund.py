@@ -1,10 +1,6 @@
-# 1. IMPORTS
-# ============================================================
 import re
 import time
 from urllib.parse import urljoin
-
-# Tenta importar do projeto, se falhar (standalone), faz o mock
 try:
     from .common import normalize, scrape_deadline_from_page
 except ImportError:
@@ -14,16 +10,12 @@ except ImportError:
         sys.path.insert(0, ROOT)
     from providers.common import normalize, scrape_deadline_from_page
 
-# Importa o Playwright (motor de navegador)
 try:
     from playwright.sync_api import sync_playwright
 except ImportError:
     print("ERRO: Playwright não instalado. Rode 'pip install playwright' e 'playwright install chromium'")
     raise
 
-# ============================================================
-# 2. CONFIGURAÇÃO
-# ============================================================
 PROVIDER = {
     "name": "ChildFund Brasil",
     "group": "Fundações e Prêmios"
@@ -31,9 +23,6 @@ PROVIDER = {
 
 START_URL = "https://childfundbrasil.org.br/editais/"
 
-# ============================================================
-# 3. LÓGICA DE EXTRAÇÃO (PLAYWRIGHT)
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False):
     is_debug = _debug or str(cfg.get("CHILDFUND_DEBUG", "0")).lower() in ("1", "true")
     
@@ -44,7 +33,6 @@ def fetch(regex, cfg, _debug: bool = False):
     seen = set()
 
     with sync_playwright() as p:
-        # Lança o navegador (headless=True para não abrir janela, False para ver acontecendo)
         browser = p.chromium.launch(headless=True) 
         context = browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -55,7 +43,7 @@ def fetch(regex, cfg, _debug: bool = False):
             log(f"Acessando: {START_URL}")
             page.goto(START_URL, timeout=60000, wait_until="domcontentloaded")
             
-            # --- 1. ACEITAR COOKIES ---
+            # Cabeçalhos para simular um navegador real e evitar bloqueios de bot/cookies
             log("Verificando banner de cookies...")
             try:
                 # Procura botões com texto comum de aceite
@@ -67,14 +55,12 @@ def fetch(regex, cfg, _debug: bool = False):
             except:
                 log("Nenhum banner de cookie impeditivo encontrado ou erro ao clicar.")
 
-            # --- 2. LOCALIZAR ÁREA DE CONTEÚDO ---
-            # Espera carregar os cards de editais
+            # LOCALIZAR ÁREA DE CONTEÚDO
             try:
                 page.wait_for_selector("main a, div.elementor-widget-container a", timeout=10000)
             except:
                 log("Timeout aguardando seletores específicos. Tentando ler a página assim mesmo.")
 
-            # Extração via JavaScript no navegador
             raw_items = page.evaluate(r'''() => {
                 const items = [];
                 const anchors = Array.from(document.querySelectorAll('a'));
@@ -134,10 +120,8 @@ def fetch(regex, cfg, _debug: bool = False):
 
             log(f"Links extraídos da área principal: {len(raw_items)}")
 
-            # --- 3. FILTRAGEM PYTHON ---
             keywords_permitidas = ["edital", "seleção", "termo", "referência", "chamada", "tdr", "consultoria", "parceria", "organização"]
             
-            # ADICIONEI "política", "privacidade", "confidencialidade" PARA REMOVER O ITEM INDESEJADO
             keywords_proibidas = [
                 "missão", "visão", "governança", "certificações", "facebook", "instagram", "youtube", "linkedin", 
                 "doação", "histórias", "conteúdos", "política", "privacidade", "confidencialidade", "termos de uso"
@@ -195,9 +179,7 @@ def fetch(regex, cfg, _debug: bool = False):
 
     return out
 
-# ============================================================
-# 4. TESTE STANDALONE
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     import re
     dummy_re = re.compile(r".*", re.I)

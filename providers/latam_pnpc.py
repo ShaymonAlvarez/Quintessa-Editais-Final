@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from .common import normalize  # mantém compat; não usamos scrape_deadline aqui
@@ -9,17 +8,13 @@ from urllib.parse import urlencode
 
 PROVIDER = {"name": "PNCP — API (Licitações + Contratações)", "group": "América Latina / Brasil"}
 
-# --- ENDPOINTS OFICIAIS (consulta pública PNCP) ---
 BASE_CONSULTA = "https://pncp.gov.br/api/consulta/v1"
 EP_PUBLICACAO = f"{BASE_CONSULTA}/contratacoes/publicacao"  # OK
 EP_PROPOSTA   = f"{BASE_CONSULTA}/contratacoes/proposta"    # OK
-# Rotas acima confirmadas no catálogo/Swagger. Não use /licitacoes/publicacao.  # (404)  :contentReference[oaicite:1]{index=1}
 
 # paginação
 PAGE_SIZE = 50
 MAX_PAGES = 50
-
-# modalidades exigidas no caso do seu uso (2 e 3)
 LIC_MODALIDADES = (2, 3)
 
 HEADERS = {"Accept": "application/json", "User-Agent": "Mozilla/5.0 (EditaisWatcher)"}
@@ -117,7 +112,7 @@ def fetch(regex, cfg):
     results: List[Dict[str, Any]] = []
     seen_links: set[str] = set()
 
-    # 1) PUBLICAÇÕES (exige modalidade)
+    # 1) PUBLICAÇÕES
     for mod in LIC_MODALIDADES:
         params = {"dataInicial": dini, "dataFinal": dfim, "codigoModalidadeContratacao": mod}
         for it in _paginate(EP_PUBLICACAO, params):
@@ -125,7 +120,7 @@ def fetch(regex, cfg):
             if out_item and out_item["link"] not in seen_links:
                 results.append(out_item); seen_links.add(out_item["link"])
 
-    # 2) PROPOSTAS EM ABERTO (até hoje) — também exige modalidade
+    # 2) PROPOSTAS EM ABERTO (até hoje) 
     for mod in LIC_MODALIDADES:
         params = {"dataFinal": dfim, "codigoModalidadeContratacao": mod}
         for it in _paginate(EP_PROPOSTA, params):

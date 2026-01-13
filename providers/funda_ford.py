@@ -4,13 +4,11 @@ import logging
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
-# Tentativa de importação do common para rodar tanto como módulo quanto standalone
 try:
     from . import common
 except ImportError:
     import common
 
-# CONFIGURAÇÕES DO PROVIDER
 PROVIDER = {
     "name": "Ford Foundation",
     "group": "Governo/Multilaterais",

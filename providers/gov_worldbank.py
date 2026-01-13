@@ -3,7 +3,7 @@ from .common import normalize, list_links, scrape_deadline_from_page
 PROVIDER = {"name":"World Bank Procurement","group":"Governo/Multilaterais"}
 
 def fetch(regex, cfg):
-    # Página pública agregada (avaliação leve). Para usar Socrata, integre catálogos específicos depois.
+    # Página pública agregada (avaliação leve). Para usar Socrata, integre catálogos específicos depois
     url = "https://projects.worldbank.org/en/projects-operations/procurement"
     pairs = list_links(url, "a")
     out=[]

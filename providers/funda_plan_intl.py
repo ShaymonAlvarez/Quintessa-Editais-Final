@@ -4,7 +4,6 @@ from typing import List, Optional
 from bs4 import BeautifulSoup, Tag
 import dateparser
 
-# Tenta importar do common, mas se falhar (modo teste), define fallback
 try:
     from .common import normalize
 except ImportError:
@@ -111,8 +110,8 @@ def fetch(regex: str = "", cfg: dict = None) -> List[dict]:
                         if link.startswith("/"):
                             link = "https://plan-international.org" + link
                     
-                    # Se não tem link, mas o texto parece um edital, pode ser um aviso.
-                    # Mas geralmente queremos itens com link/download.
+                    # Se não tem link, mas o texto parece um edital, pode ser um aviso
+                    # Mas geralmente queremos itens com link/download
                     if not link:
                         continue
 

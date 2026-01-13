@@ -5,13 +5,9 @@ import re
 import time
 from urllib.parse import urljoin
 
-# ============================================================
-# 1. IMPORTS COM FALLBACK (Sistema vs Standalone)
-# ============================================================
 try:
     from .common import normalize, parse_date_any, scrape_deadline_from_page
 except ImportError:
-    # Fallback para rodar direto do terminal: python providers/gov_afd.py
     import os, sys
     ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if ROOT not in sys.path:
@@ -19,21 +15,16 @@ except ImportError:
     try:
         from providers.common import normalize, parse_date_any, scrape_deadline_from_page
     except ImportError:
-        # Mocks caso common.py não seja encontrado
         def normalize(x): return " ".join(x.split()) if x else ""
         def parse_date_any(x): return x
         def scrape_deadline_from_page(x): return None
 
-# Importação do Playwright (Essencial para lidar com cookies e JS)
 try:
     from playwright.sync_api import sync_playwright
 except ImportError:
     print("ERRO CRÍTICO: Playwright não instalado. Instale com 'pip install playwright'.")
     raise
 
-# ============================================================
-# 2. METADADOS DO PROVIDER
-# ============================================================
 PROVIDER = {
     "name": "AFD (Agence Française de Développement)",
     "group": "Governo/Multilaterais"
@@ -41,25 +32,18 @@ PROVIDER = {
 
 START_URL = "https://www.afd.fr/en/calls-for-projects/list"
 
-# Mapeamento de Keywords: O site é em Inglês, então mapeamos os termos solicitados.
-# O script filtra se o título contiver ALGUM termo (PT ou EN).
+# Palavras-chave obrigatórias para funcionamento do código
 KEYWORDS_FILTER = [
-    # Solicitados (PT)
     "Edital", "Chamada", "Chamamento", "Programa", "Prémio", "Prêmio", "Credenciamento",
-    # Equivalentes (EN) - Necessário para o site da AFD
     "Call for projects", "Call for expressions of interest", "Call for proposals", 
     "Program", "Award", "Prize", "Grant", "Fund", "Tender"
 ]
 
-# ============================================================
-# 3. LÓGICA DE COLETA (FETCH)
-# ============================================================
 def fetch(regex, cfg, _debug: bool = False):
     """
     Coleta chamadas de projetos do site da AFD.
     Aceita cookies automaticamente e extrai metadados.
     """
-    # Define modo debug (via config ou flag manual)
     is_debug = _debug or str(cfg.get("AFD_DEBUG", "0")).lower() in ("1", "true", "yes")
 
     def log(*args):
@@ -88,8 +72,8 @@ def fetch(regex, cfg, _debug: bool = False):
             # 1. ACESSAR PÁGINA
             page.goto(START_URL, timeout=60000, wait_until="domcontentloaded")
             
-            # 2. TRATAMENTO DE COOKIES (Automático)
-            # A AFD usa "tarteaucitron" ou banners genéricos. Tentamos clicar em "Aceitar".
+            # Cabeçalhos para simular um navegador real e evitar bloqueios de bot/cookies
+            # A AFD usa "tarteaucitron" ou banners genéricos. Tenta clicar em "Aceitar".
             log("Verificando banner de cookies...")
             try:
                 # Tenta seletores comuns de "Accept All" ou "Agree"
@@ -165,7 +149,7 @@ def fetch(regex, cfg, _debug: bool = False):
                 else:
                     full_link = START_URL
 
-                # -- FILTRO DE PALAVRAS-CHAVE --
+                # FILTRO DE PALAVRAS-CHAVE 
                 # Verifica se o título contém algum dos termos exigidos (PT ou EN)
                 has_keyword = any(k.lower() in title.lower() for k in KEYWORDS_FILTER)
                 
@@ -176,12 +160,12 @@ def fetch(regex, cfg, _debug: bool = False):
                         # log(f"Ignorado (sem palavra-chave): {title}")
                         continue
 
-                # -- FILTRO DE DUPLICATAS --
+                # FILTRO DE DUPLICATAS
                 if full_link in seen:
                     continue
                 seen.add(full_link)
 
-                # -- EXTRAÇÃO DE DATA E PREÇO --
+                # EXTRAÇÃO DE DATA E PREÇO
                 deadline = None
                 
                 # Procura padrões de data no texto do card (ex: "Deadline: 15/05/2025" ou "Closing date: ...")
@@ -223,9 +207,7 @@ def fetch(regex, cfg, _debug: bool = False):
     log(f"Total coletado: {len(out)}")
     return out
 
-# ============================================================
-# 4. MODO STANDALONE (TESTE)
-# ============================================================
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     # Para rodar este teste: python providers/gov_afd.py
     # Isso simula a execução isolada com a flag de teste.

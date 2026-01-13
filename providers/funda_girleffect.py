@@ -1,12 +1,9 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
-
 import re
 import sys
 import os
 from bs4 import BeautifulSoup
 
-# --- 1. CONFIGURAÇÃO DE IMPORTAÇÃO ROBUSTA ---
 try:
     from .common import normalize, try_fetch, scrape_deadline_from_page
 except ImportError:
@@ -19,7 +16,6 @@ except ImportError:
         print("ERRO: Não foi possível importar 'common.py'.")
         sys.exit(1)
 
-# --- 2. CONFIGURAÇÃO DO PROVIDER ---
 PROVIDER = {
     "name": "Girl Effect",
     "group": "Fundações e Prêmios"
@@ -27,12 +23,10 @@ PROVIDER = {
 
 URL_BASE = "https://boards.greenhouse.io/girleffect"
 
-# ADICIONEI TERMOS EM INGLÊS BASEADO NO SEU PRINT
+# Palavras-chave obrigatórias para funcionamento do código
 KEYWORDS = [
-    # Português (Padrão)
     "Edital", "Editais", "Chamada", "Chamamento", 
     "Programa", "Prémio", "Prêmio", "Credenciamento",
-    # Inglês (Necessário para este site)
     "Request for Proposal", "RFP", 
     "Terms of Reference", "ToR", 
     "Consultancy", "Consultant",
@@ -65,7 +59,6 @@ def fetch(regex, cfg):
     soup = BeautifulSoup(html, "html.parser")
     out = []
 
-    # Busca links na estrutura do Greenhouse
     links_found = soup.select("div.opening a")
     if not links_found:
         main_content = soup.find(id="main") or soup.find(id="content") or soup.body
@@ -119,7 +112,7 @@ def fetch(regex, cfg):
 
     return out
 
-# --- 3. EXECUÇÃO DE TESTE ---
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     res = fetch(None, None)
     print("\n" + "="*40)
