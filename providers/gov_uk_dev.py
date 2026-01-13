@@ -33,7 +33,8 @@ HEADERS = {
 # Palavras-chave obrigatórias para funcionamento do código
 KEYWORDS_FILTER = [
     "Edital", "Editais", "Chamada", "Chamamento", "Programa", "Prémio", "Prêmio", "Credenciamento",
-    "Programme", "Grant", "Fund", "Call", "Prize", "Award", "Opportunity"
+    "Programme", "Grant", "Fund", "Call", "Prize", "Award", "Opportunity", "Acceleration", "Call for Proposals", 
+    "Funding Opportunity", "Request for Proposals", "RFP", "Tender", "Grant", "Water", "Forest", "Climate", "Sustainability"
 ]
 
 def fetch(regex, cfg, _debug: bool = False):

@@ -33,7 +33,8 @@ KEYWORDS = [
     "Programa", "Prémio", "Prêmio", "Credenciamento",
     "Contrato", "Licitação", "Proposta", "Procuramento", "Procurement",
     "Request for Proposal", "RFP", "LRP", "Expression of Interest", "EOI",
-    "Termo de Referência", "TdR", "Consultoria"
+    "Termo de Referência", "TdR", "Consultoria","Acceleration", "Call for Proposals", "Funding Opportunity", 
+    "Request for Proposals", "RFP", "Tender", "Grant", "Water", "Forest", "Climate", "Sustainability"
 ]
 
 def fetch(regex, cfg):

@@ -34,8 +34,8 @@ PROVIDER = {
 START_URL = "https://www.reparacaobaciariodoce.com/editais/"
 
 KEYWORDS_PERMITIDAS = [
-    "edital", "editais", "chamada", "chamamento", 
-    "programa", "prémio", "prêmio", "credenciamento"
+    "edital", "editais", "chamada", "chamadas", "chamamento", 
+    "programa", "prémio", "prêmio", "credenciamento", "aceleração"
 ]
 
 MIN_DAYS_TO_EXPIRE = 7 
