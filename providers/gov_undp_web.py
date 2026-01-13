@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
 import time
 import traceback
 from urllib.parse import urljoin
 
-# --- IMPORTS HÍBRIDOS ---
 try:
     from .common import normalize, parse_date_any
 except ImportError:
