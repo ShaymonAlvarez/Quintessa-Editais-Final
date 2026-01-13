@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import requests
 import re
 import logging
@@ -13,17 +12,19 @@ except ImportError:
     def normalize(x): return (x or "").strip()
     def find_deadline_in_text(x): return None
 
-# --- CONFIGURAÇÃO DO PROVIDER ---
 PROVIDER = {
     "name": "EMBRAPII Transparência",
     "group": "América Latina / Brasil"
 }
 
-BASE_URL = "https://embrapii.org.br/transparencia/"
+BASE_URL = "https://embrapii.org.br/transparencia/#chamadas"
 
 KEYWORDS = [
     "Edital", "Editais", "Chamada", "Chamamento", 
-    "Programa", "Prémio", "Prêmio", "Credenciamento","Acceleration", "Call for Proposals", "Funding Opportunity", "Request for Proposals", "RFP", "Tender", "Grant", "Water", "Forest", "Climate", "Sustainability",
+    "Programa", "Prémio", "Prêmio", "Credenciamento","Acceleration", 
+    "Call for Proposals", "Funding Opportunity", "Request for Proposals", "RFP", 
+    "Tender", "Grant", "Water", "Água", "Forest", "Floresta", "Banco", "Climate", "Clima", 
+    "Sustainability", "Sustentabilidade",
 ]
 
 def fetch_inner_deadline(session, url):
@@ -91,9 +92,6 @@ def fetch(regex, cfg):
             continue
         seen_links.add(link)
 
-        # --- AQUI ESTÁ A MUDANÇA PRINCIPAL ---
-        # Antes de adicionar, entramos no link para buscar a data real
-        # Isso torna o processo mais lento, mas muito mais preciso.
         deadline = fetch_inner_deadline(session, link)
         
         # Se não achou data na página interna, tenta ver se estava no título do link da home (fallback)
@@ -119,7 +117,7 @@ def fetch(regex, cfg):
 
     return items
 
-# --- TESTE STANDALONE ATUALIZADO ---
+# MODO DE TESTE (STANDALONE)
 if __name__ == "__main__":
     # Mock necessário para o teste funcionar sem o sistema completo
     # Copiamos uma lógica simplificada do common.py para o teste local funcionar

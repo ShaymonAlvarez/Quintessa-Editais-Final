@@ -1,9 +1,5 @@
 """
 Carregamento dinâmico de providers (providers.*).
-
-Aqui é feita a descoberta de módulos que tenham:
-- atributo PROVIDER (dict com 'group' e 'name')
-- função fetch(regex, cfg) -> List[dict]
 """
 
 from __future__ import annotations
@@ -11,36 +7,30 @@ from __future__ import annotations
 import importlib
 import pkgutil
 import sys
-from functools import lru_cache
+import pathlib
+from functools import lru_cache  # IMPORTAÇÃO NECESSÁRIA PARA CORRIGIR O ERRO
 from typing import List
 
 from .errors import push_error
-from .sheets import open_sheet, sheet_log
-
 
 @lru_cache(maxsize=1)
 def discover_providers():
     """
-    Vasculha o pacote 'providers' e retorna uma lista de módulos
-    que possuam PROVIDER e função fetch(...).
-
-    Mantém o comportamento genérico do código original.
+    Vasculha o pacote 'providers' e retorna uma lista de módulos válidos.
     """
     mods: List[object] = []
     try:
-        import providers  # pacote onde estão os arquivos providers/*.py
+        import providers
     except ImportError as e:
         push_error("discover_providers import providers", e)
         return []
 
     seen = set()
-
-    # 1) percorre subpacotes e módulos via pkgutil
+    # Percorre subpacotes
     for finder, name, ispkg in pkgutil.walk_packages(
         providers.__path__, providers.__name__ + "."
     ):
-        if ispkg:
-            continue
+        if ispkg: continue
         try:
             mod = importlib.import_module(name)
             if hasattr(mod, "PROVIDER") and callable(getattr(mod, "fetch", None)):
@@ -48,126 +38,64 @@ def discover_providers():
                 seen.add(name)
         except Exception as e:
             push_error(f"Import provider {name}", e)
-            try:
-                _, _, _, _, ws_log = open_sheet()
-                sheet_log(
-                    ws_log,
-                    "ERROR",
-                    f"Import provider {name}: {e}",
-                )
-            except Exception:
-                pass
 
-    # 2) fallback: varrer .py diretos dentro do diretório do pacote
-    try:
-        import pathlib
-
-        pkg_dir = pathlib.Path(providers.__file__).parent
-        for p in pkg_dir.glob("*.py"):
-            if p.name.startswith("_") or p.name == "__init__.py":
-                continue
-            name = f"{providers.__name__}.{p.stem}"
-            if name in seen:
-                continue
-            try:
-                mod = importlib.import_module(name)
-                if hasattr(mod, "PROVIDER") and callable(getattr(mod, "fetch", None)):
-                    mods.append(mod)
-                    seen.add(name)
-            except Exception as e:
-                push_error(f"Import provider {name}", e)
-                try:
-                    _, _, _, _, ws_log = open_sheet()
-                    sheet_log(
-                        ws_log,
-                        "ERROR",
-                        f"Import provider {name}: {e}",
-                    )
-                except Exception:
-                    pass
-    except Exception:
-        pass
-
-    # Ordena por grupo / nome para exibir consistente
+    # Ordena por grupo / nome
     mods.sort(key=lambda x: (x.PROVIDER.get("group", ""), x.PROVIDER.get("name", "")))
-
-    # Loga o que foi carregado
-    try:
-        _, _, _, _, ws_log = open_sheet()
-        sheet_log(
-            ws_log,
-            "INFO",
-            "providers_loaded: "
-            + str(
-                [
-                    {
-                        "group": m.PROVIDER.get("group", ""),
-                        "name": m.PROVIDER.get("name", ""),
-                    }
-                    for m in mods
-                ]
-            )[:45000],
-        )
-    except Exception:
-        pass
-
     return mods
 
-
 def load_providers():
-    """Alias simples para discover_providers()."""
     return discover_providers()
-
 
 @lru_cache(maxsize=1)
 def get_available_groups() -> list[str]:
     """
-    Retorna a lista de grupos disponíveis, misturando base fixa
-    com grupos descobertos nos providers.
-    
-    Ajuste: Normaliza nomes removendo espaços ao redor de '/' para evitar duplicidade.
+    Retorna estritamente as categorias oficiais permitidas.
+    Filtra qualquer grupo vindo de providers que não esteja nesta lista.
     """
-    base = ["Governo/Multilaterais", "Fundações e Prêmios", "Corporativo/Aceleradoras","América Latina/Brasil"]
+    # 1. Definição ÚNICA das categorias permitidas [SOLICITAÇÃO DO USUÁRIO]
+    OFFICIAL_GROUPS = [
+        "América Latina/Brasil",
+        "Corporativo/Aceleradoras",
+        "Governo/Multilaterais",
+        "Fundações e Prêmios"
+    ]
     
-    # Conjunto para garantir unicidade, iniciado com a base
-    groups = set(base)
+    validated_groups = set()
 
     try:
-        mods = load_providers()
+        mods = load_providers() 
         for m in mods:
-            raw_group = m.PROVIDER.get("group", "").strip()
-            if raw_group:
-                # Normaliza: troca " / " por "/" para bater com a lista base
-                norm_group = raw_group.replace(" / ", "/").replace(" /", "/").replace("/ ", "/")
-                groups.add(norm_group)
-    except Exception:
-        pass
+            # Pega o grupo e limpa espaços
+            raw_group = getattr(m, "PROVIDER", {}).get("group", "").strip()
+            if not raw_group:
+                continue
+            
+            # Normaliza: remove espaços em volta da barra (ex: "Brasil / Latam" -> "Brasil/Latam")
+            norm_group = raw_group.replace(" / ", "/").replace(" /", "/").replace("/ ", "/")
+            
+            # SÓ adiciona se for exatamente um dos 4 oficiais
+            if norm_group in OFFICIAL_GROUPS:
+                validated_groups.add(norm_group)
+                
+    except Exception as e:
+        push_error("get_available_groups_critical", e)
+    
+    # Se a lista validada estiver vazia (devido a erros), retorna a oficial por segurança
+    if not validated_groups:
+        return sorted(OFFICIAL_GROUPS, key=lambda s: s.lower())
         
-    return sorted(groups, key=lambda s: s.lower())
-
+    return sorted(list(validated_groups), key=lambda s: s.lower())
 
 def reload_provider_modules() -> None:
-    """
-    Recarrega módulos providers.* e limpa caches de descoberta/grupos.
-
-    Útil quando se adiciona um novo provider sem reiniciar o backend.
-    """
     try:
         import providers
-
         for mname, mobj in list(sys.modules.items()):
             if mname.startswith("providers.") and mobj:
                 try:
                     importlib.reload(mobj)
                 except Exception:
                     pass
-        try:
-            discover_providers.cache_clear()
-        except Exception:
-            pass
-        try:
-            get_available_groups.cache_clear()
-        except Exception:
-            pass
+        discover_providers.cache_clear()
+        get_available_groups.cache_clear()
     except Exception as e:
         push_error("reload_providers_modules", e)
