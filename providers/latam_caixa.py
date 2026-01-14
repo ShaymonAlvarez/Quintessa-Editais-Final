@@ -71,7 +71,17 @@ def _looks_like_call_title(txt: str) -> bool:
             "circular",
             "socioambiental",
             "socioambientais",
-            "fundo",
+            "fundo", 
+            "banco de fomento"
+            "água",
+            "clima"
+            "floresta"
+            "sustentabilidade"
+            "meio ambiente"
+            "desenvolvimento"
+            "social"
+            "impacto"
+            "aceleração"
         )
     ):
         return True

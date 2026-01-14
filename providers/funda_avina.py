@@ -35,7 +35,9 @@ START_URL = "https://www.avina.net/pt/consultoria/"
 # Palavras-chave obrigatórias para funcionamento do código
 KEYWORDS_FILTER = [
     "Edital", "Editais", "Chamada", "Consultoria", "Chamamento", 
-    "Programa", "Prémio", "Prêmio", "Credenciamento"
+    "Programa", "Prêmio", "Credenciamento", "Aceleração", "Inovação", 
+    "Água", "Sustentabilidade", "Clima", "Meio Ambiente", "Desenvolvimento", "Social",
+    "Empreendedorismo", "Impacto", "Tecnologia", "Banco de fomento", 
 ]
 
 def fetch(regex, cfg, _debug: bool = False):

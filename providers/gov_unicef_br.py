@@ -29,12 +29,12 @@ BASE_URL = "https://www.unicef.org/brazil/oportunidade-para-fornecedores-e-parce
 
 # Palavras-chave obrigatórias para funcionamento do código
 KEYWORDS = [
-    "Edital", "Editais", "Chamada", "Chamamento", 
-    "Programa", "Prémio", "Prêmio", "Credenciamento",
-    "Contrato", "Licitação", "Proposta", "Procuramento", "Procurement",
-    "Request for Proposal", "RFP", "LRP", "Expression of Interest", "EOI",
-    "Termo de Referência", "TdR", "Consultoria","Acceleration", "Call for Proposals", "Funding Opportunity", 
-    "Request for Proposals", "RFP", "Tender", "Grant", "Water", "Forest", "Climate", "Sustainability"
+    "Edital", "Editais", "Chamada", "Programa", "Prêmio", "Credenciamento",
+    "Contrato", "Licitação", "Proposta", "Procuramento", "Procurement", "Request for Proposal", 
+    "RFP", "LRP", "Expression of Interest", "EOI", "Termo de Referência", "TdR", "Consultoria",
+    "Acceleration", "Call for Proposals", "Funding Opportunity", "Request for Proposals", "RFP", "Tender", 
+    "Grant", "Water", "Forest", "Climate", "Sustainability", "Environment", "Development", "Social", "Entrepreneurship",
+    "Impact", "Technology", "Development Bank", "Innovation", "Consultancy", "Program", "Acceleration", "Innovation",
 ]
 
 def fetch(regex, cfg):

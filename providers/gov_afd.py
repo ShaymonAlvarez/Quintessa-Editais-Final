@@ -34,11 +34,10 @@ START_URL = "https://www.afd.fr/en/calls-for-projects/list"
 
 # Palavras-chave obrigatórias para funcionamento do código
 KEYWORDS_FILTER = [
-    "Edital", "Chamada", "Chamamento", "Programa", "Prémio", "Prêmio", "Credenciamento",
-    "Call for projects", "Call for expressions of interest", "Call for proposals", 
-    "Program", "Award", "Prize", "Grant", "Fund", "Tender"
-]
-
+    "Edital", "Chamada", "Programa", "Prêmio", "Credenciamento", "Call for projects", "Call for expressions of interest", 
+    "Call for proposals", "Program", "Award", "Prize", "Grant", "Fund", "Tender", "Water", "Sustainability",
+    "Climate", "Environment", "Development", "Social", "Entrepreneurship", "Impact", "Technology", "Development Bank",
+    ]
 def fetch(regex, cfg, _debug: bool = False):
     """
     Coleta chamadas de projetos do site da AFD.

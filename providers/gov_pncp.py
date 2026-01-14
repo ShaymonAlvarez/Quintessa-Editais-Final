@@ -25,7 +25,9 @@ PROVIDER = {
 START_URL = "https://pncp.gov.br/app/editais?q=&pagina=1"
 KEYWORDS = ["Edital", "Editais", "Chamada", "Chamamento", "Programa", "Prêmio", "Prémio", "Credenciamento", 
 "Sustentabilidade", "Aceleração", "Inovação", "Tecnologia", "Pesquisa", "Desenvolvimento", 
-"Água", "Clima", "Floresta", "Banco"]
+"Água", "Clima", "Floresta", "Banco", "Fomento", "Desenvolvimento Social", "Empreendedorismo", "Impacto",
+"Tender", "Call", "Grant", "Consultoria", "Consultancy", "Innovation", "Acceleration", "Development Bank", 
+]
 
 def fetch(regex, cfg, _debug: bool = False):
     is_debug = _debug or str(cfg.get("PNCP_DEBUG", "0")).lower() in ("1", "true", "yes")

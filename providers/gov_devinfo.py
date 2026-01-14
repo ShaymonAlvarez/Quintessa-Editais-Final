@@ -32,8 +32,10 @@ START_URL = "https://devinfo.in/request-for-proposals/"
 # Palavras-chave obrigatórias para funcionamento do código
 KEYWORDS_FILTER = [
     "edital", "editais", "chamada", "chamamento", "programa", "prémio", "premio", "credenciamento",
-    "request for proposal", "rfp", "call", "grant", "program", "award", "opportunity"
-]
+    "request for proposal", "rfp", "call", "grant", "program", "award", "opportunity", "water", "sustainability",
+    "climate", "environment", "development", "social", "entrepreneurship", "impact", "technology", "development bank",
+    "acceleration", "innovation", "tender", "consultancy",
+    ]
 
 # Regex captura data no início (ex: "December 26, 2024 ...")
 RE_DATE_START = re.compile(r"^([A-Za-z]+\s+\d{1,2},?\s+\d{4})", re.IGNORECASE)

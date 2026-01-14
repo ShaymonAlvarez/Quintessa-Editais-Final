@@ -30,9 +30,11 @@ START_URL = "https://www.freedomfund.org/careers/"
 
 # Palavras-chave obrigatórias para funcionamento do código
 KEYWORDS_FILTER = [
-    "edital", "propostas", "propostas", "editais", "chamada", "chamamento", "programa", "prémio", "premio", "credenciamento",
-    "call", "request for proposals", "rfp", "grant", "consultancy", "tender", "opportunity", "program"
-]
+    "edital", "propostas", "editaL", "chamada", "programa", "premio", "credenciamento",
+    "call", "request for proposals", "rfp", "grant", "consultancy", "tender", "opportunity", "program", 
+    "sustentability", "innovation", "acceleration", "development", "social", "entrepreneurship", "impact",
+    "technology", "bank of development", "water", "climate", "environment",
+    ]
 
 RE_DEADLINE_TEXT = re.compile(r"(?:Deadline|Closing date)[:\.]?\s*(\d{1,2}\s+[A-Za-z]+\s+\d{4}|\d{2}/\d{2}/\d{4})", re.IGNORECASE)
 

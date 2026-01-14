@@ -27,7 +27,9 @@ START_URL = "https://plan-international.org/calls-tender/"
 KEYWORDS_FILTER = [
     "Edital", "Editais", "Chamada", "Chamamento", 
     "Programa", "Prémio", "Prêmio", "Credenciamento",
-    "Tender", "Call", "RFP", "Proposal", "Consultancy"
+    "Tender", "Call", "RFP", "Proposal", "Consultancy", "Acceleration", "Innovation",
+    "Water", "Sustainability", "Climate", "Environment", "Development", "Social",
+    "Entrepreneurship", "Impact", "Technology", "Development Bank",
 ]
 
 def fetch(regex, cfg, _debug: bool = False):

@@ -24,10 +24,11 @@ def fetch(regex, cfg):
     
     # Palavras-chave atualizadas
     keywords = [
-        "Edital", "Editais", "Chamada", "Chamamento", "Programa", "Prêmio", "Prémio",
-        "Credenciamento", "Acceleration", "Call for Proposals", "Funding Opportunity", 
-        "Request for Proposals", "RFP", "Tender", "Grant", "Water", "Forest", 
-        "Climate", "Sustainability", "Ambiental", "Sustentabilidade"
+        "Edital", "Editais", "Chamada", "Programa", "Prêmio", "Credenciamento", "Aceleração", "Inovação",
+        "Acceleration", "Call for Proposals", "Funding Opportunity", "Request for Proposals", "RFP", 
+        "Tender", "Grant", "Water", "Forest", "Climate", "Sustainability", "Ambiental", "Sustentabilidade", "Environment",
+        "Development", "Social", "Entrepreneurship", "Impact", "Technology", "Development Bank", "Innovation", "Consultancy", 
+        "Consulting", "Program",
     ]
     kw_pattern = re.compile(r"|".join(keywords), re.IGNORECASE)
     

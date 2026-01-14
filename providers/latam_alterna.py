@@ -30,8 +30,11 @@ START_URL = "https://carreras.alterna.pro/jobs/Careers"
 
 # Requisito 3: Palavras-chave obrigatórias
 KEYWORDS_FILTER = [
-    "Edital", "Editais", "Chamada", "Chamamento", 
-    "Programa", "Prêmio", "Prémio", "Credenciamento"
+    "Edital", "Editais", "Chamada", "Aceleração","Programa", "Prêmio", "Credenciamento",
+    "Água", "Water", "Sustentability", "Clima", "Climate", "Meio Ambiente", "Environment",
+    "Desenvolvimento", "Development", "Social", "Empreendedorismo", "Entrepreneurship",
+    "Impacto", "Impact", "Tecnologia", "Technology",  "Banco de fomento", "Development Bank",
+    "Inovação", "Innovation", "Consultoria", "Consultancy", "Tender", "Call", "Grant"
 ]
 
 def fetch(regex, cfg, _debug: bool = False):

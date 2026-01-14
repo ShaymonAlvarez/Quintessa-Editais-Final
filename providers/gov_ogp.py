@@ -22,8 +22,9 @@ PROVIDER = {
 
 # Palavras-chave obrigatórias para funcionamento do código
 REQUIRED_KEYWORDS = [
-    "Edital", "Editais", "Chamada", "Chamamento", 
-    "Programa", "Prémio", "Prêmio", "Credenciamento", "Open", "Call", "Award", "Challenge", "Co-creation", "Implement", "Improve", "Submission"
+    "Edital", "Editais", "Chamada", "Programa", "Prêmio", "Credenciamento", "Open", "Call", "Award", "Challenge", 
+    "Co-creation", "Implement", "Improve", "Submission", "Acceleration", "Innovation", "Water", "Sustainability",
+    "Climate", "Environment", "Development", "Social", "Entrepreneurship", "Impact", "Technology", "Development Bank",
 ]
 
 def fetch(regex, cfg):

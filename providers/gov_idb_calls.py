@@ -68,7 +68,9 @@ def fetch(regex, cfg, _debug: bool = False):
     # Palavras-chave de interesse
     KEYWORDS = ["call", "proposal", "opportunity", "grant", "deadline", "convocatoria", "propuesta", "chamada", 
     "Acceleration", "Call for Proposals", "Funding Opportunity", "Request for Proposals", "RFP", "Tender", 
-    "Grant", "Water", "Forest", "Climate", "Sustainability"]
+    "Grant", "Water", "Forest", "Climate", "Sustainability", "Environment", "Development", "Social", "Entrepreneurship", 
+    "Impact", "Technology", "Development Bank", "Innovation", "Consultancy", "Program"
+    ]
 
     anchors = soup.find_all("a", href=True)
     log(f"Links encontrados: {len(anchors)}")

@@ -27,7 +27,9 @@ START_URL = "https://luxdev.lu/en/tenders/call-tenders"
 # Cabeçalhos para simular um navegador real e evitar bloqueios de bot/cookies
 KEYWORDS_FILTER = [
     "edital", "editais", "chamada", "chamamento", "programa", "prémio", "premio", "credenciamento",
-    "call", "tender", "request", "appel", "offre", "procurement", "consulting", "services", "works", "goods"
+    "call", "tender", "request", "appel", "offre", "procurement", "consulting", "acceleration", 
+    "grant","water", "sustainability", "climate", "environment", "development", "social", "entrepreneurship", 
+    "impact", "technology", "development bank", "innovation", "consultancy"
 ]
 
 # Cabeçalhos para simular um navegador real e evitar bloqueios de bot/cookies

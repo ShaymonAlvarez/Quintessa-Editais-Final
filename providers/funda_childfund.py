@@ -120,7 +120,10 @@ def fetch(regex, cfg, _debug: bool = False):
 
             log(f"Links extraídos da área principal: {len(raw_items)}")
 
-            keywords_permitidas = ["edital", "seleção", "termo", "referência", "chamada", "tdr", "consultoria", "parceria", "organização"]
+            keywords_permitidas = ["edital", "seleção", "termo", "referência", "chamada", "tdr", "consultoria", "parceria", "organização", 
+            "aceleração", "inovação", "clima", "sustentabilidade", "desenvolvimento", "social", "empreendedorismo", "impacto", "tecnologia",
+            "banco de fomento",
+            ]
             
             keywords_proibidas = [
                 "missão", "visão", "governança", "certificações", "facebook", "instagram", "youtube", "linkedin", 

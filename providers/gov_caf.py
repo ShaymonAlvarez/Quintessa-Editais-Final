@@ -23,8 +23,9 @@ START_URL = "https://www.caf.com/en/work-with-us/calls"
 REQUIRED_KEYWORDS = [
     "call", "request", "program", "prize", "award", 
     "tender", "procurement", "consultancy", "proposal", "rfp",
-    "edital", "chamada", "convocatoria", "licitación", "designs"
-]
+    "edital", "chamada", "convocatoria", "licitación", "designs", "water", "sustainability",
+    "climate", "environment", "development", "social", "entrepreneurship", "impact", "technology", "development bank", 
+    ]
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",

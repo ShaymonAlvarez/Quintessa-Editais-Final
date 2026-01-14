@@ -26,7 +26,11 @@ HEADERS = {
 # Palavras-chave obrigatórias para funcionamento do código
 KEYWORDS = [
     'EDITAL', 'EDITAIS', 'CHAMADA', 'CHAMAMENTO', 
-    'PROGRAMA', 'PRÉMIO', 'CREDENCIAMENTO','FELLOWSHIP','REQUEST', 'GRANT']
+    'PROGRAM', 'AWARD', 'CREDENCIAMENTO','FELLOWSHIP','REQUEST', 'GRANT', 
+    'ACCELERATION', 'INNOVATION', 'WATER', 'SUSTAINABILITY', 'CLIMATE', 
+    'ENVIRONMENT', 'DEVELOPMENT', 'SOCIAL', 'ENTREPRENEURSHIP', 'IMPACT', 
+    'TECHNOLOGY', 'DEVELOPMENT BANK',
+    ]
 
 def fetch(regex=None, cfg=None, _debug: bool = False):
     """

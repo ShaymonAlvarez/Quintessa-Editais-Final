@@ -25,13 +25,11 @@ URL_BASE = "https://boards.greenhouse.io/girleffect"
 
 # Palavras-chave obrigatórias para funcionamento do código
 KEYWORDS = [
-    "Edital", "Editais", "Chamada", "Chamamento", 
-    "Programa", "Prémio", "Prêmio", "Credenciamento",
-    "Request for Proposal", "RFP", 
-    "Terms of Reference", "ToR", 
-    "Consultancy", "Consultant",
-    "Expression of Interest"
-]
+    "Edital", "Editais", "Chamada", "Programa", "Prêmio", "Credenciamento", "Request for Proposal", "RFP", 
+    "Terms of Reference", "ToR", "Consultancy", "Consultant", "Expression of Interest", "Water", "Sustainability",
+    "Climate", "Environment", "Development", "Social", "Entrepreneurship", "Impact", "Technology", 
+    "Development Bank", "Acceleration", "Innovation",
+    ]
 
 def check_keywords(text: str) -> bool:
     """Verifica se alguma das palavras-chave está presente no texto."""

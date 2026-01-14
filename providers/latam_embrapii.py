@@ -20,11 +20,13 @@ PROVIDER = {
 BASE_URL = "https://embrapii.org.br/transparencia/#chamadas"
 
 KEYWORDS = [
-    "Edital", "Editais", "Chamada", "Chamamento", 
-    "Programa", "Prémio", "Prêmio", "Credenciamento","Acceleration", 
-    "Call for Proposals", "Funding Opportunity", "Request for Proposals", "RFP", 
-    "Tender", "Grant", "Water", "Água", "Forest", "Floresta", "Banco", "Climate", "Clima", 
-    "Sustainability", "Sustentabilidade",
+    "Edital", "Editais", "Chamada", "Programa", "Prêmio", "Credenciamento",
+    "Aceleração", "Acceleration", "Call for Proposals", "Funding Opportunity", 
+    "Request for Proposals", "RFP", "Tender", "Grant", "Water", "Água", "Forest", "Inovação", 
+    "Floresta", "Banco", "Climate", "Clima", "Sustainability", "Sustentabilidade", "Environment",
+    "Desenvolvimento", "Development", "Social", "Empreendedorismo", "Entrepreneurship",
+    "Impacto", "Impact", "Tecnologia", "Technology", "Development Bank", "Banco de Fomento",
+    "Innovation", "Inovação", "Consultoria", "Consultancy", "Program", "Acceleration",
 ]
 
 def fetch_inner_deadline(session, url):
