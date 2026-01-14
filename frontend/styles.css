@@ -32,18 +32,33 @@ body.collect-theme .app-main{padding:0;}
   display:grid;
   grid-template-columns: 340px 1fr; /* sidebar + conteúdo */
   min-height:100vh;
+  width: 100%;
+  overflow-x: hidden; /* Evita scroll horizontal indesejado */
   background:var(--qs-purple);
 }
 
 /* Sidebar BRANCA fixa */
+/* Sidebar BRANCA fixa (sempre visível) */
 .collect-sidebar{
-  background:#fff;color:#34204f;
-  padding:45px 18px;display:flex;flex-direction:column;
-  gap:320px;
+  background:#fff;
+  color:#34204f;
+  padding:45px 18px;
+  display:flex;
+  flex-direction:column;
+  gap:32px;
   border-right:1px solid var(--border);
 
-  position:sticky;top:0;align-self:start;height:100vh;overflow:auto;
+  /* ALTERAÇÃO: sempre visível */
+  position:fixed;
+  top:0;
+  left:0;
+  width:340px;     /* precisa bater com o grid-template-columns */
+  height:100vh;
+  overflow-y:auto; /* scroll interno caso a sidebar cresça */
+
+  z-index:1000;    /* fica acima do conteúdo, mas abaixo de modal (9999) */
 }
+
 .collect-sidebar .qs-logo{display:flex;justify-content:center;}
 .collect-sidebar .qs-logo{margin-bottom:6px;}
 .collect-sidebar .qs-logo img{
@@ -52,11 +67,17 @@ body.collect-theme .app-main{padding:0;}
   display:block;
 }
 
-.side-actions{display:flex;flex-direction:column;gap:14px;}
+.side-actions{display:flex;
+  flex-direction:column;gap:14px;}
 .side-cta{
-  display:flex;align-items:center;justify-content:center;
-  width:100%;border:none;cursor:pointer;text-decoration:none;
-  background:var(--qs-purple);color:#fff;border-radius:999px;
+  display:flex;align-items:center;
+  justify-content:center;
+  width:100%;border:none;
+  cursor:pointer;
+  text-decoration:none;
+  background:var(--qs-purple);
+  color:#fff;
+  border-radius:999px;
   padding:14px 16px;
   font-weight: 700;
   font-size: 0.95rem; 
@@ -67,12 +88,21 @@ body.collect-theme .app-main{padding:0;}
 
 /* Conteúdo roxo à direita */
 .collect-content{
+  grid-column:2;  /* garante que o conteúdo fique sempre na coluna da direita */
+  min-width:0;    /* evita overflow/estouro horizontal em grids */
   /* gradiente roxo ao fundo, como no print */
   background:linear-gradient(180deg,#3a1d5e 0%, #572d81 38%, #2c1647 100%);
-  color:#fff;padding:24px 26px 32px;
+  color:#fff;
+  padding:24px 26px 32px;
+  width: 100%; /* Garante que ocupa o espaço do grid */
+  box-sizing: border-box;
 }
 .collect-hero h2{
-  margin:0 0 24px;font-size:32px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;
+  margin:0 0 24px;
+  font-size:32px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.5px;
   text-align:center; /* centralizado */
 }
 
@@ -452,10 +482,26 @@ button.danger{background:#b00020;color:#fff;border:none;}
   .collect-layout{
     grid-template-columns:1fr;
   }
+  /* ALTERAÇÃO: no mobile, vira barra do topo e continua sempre visível */
   .collect-sidebar{
-    grid-row:1;flex-direction:row;align-items:center;justify-content:space-between;height:auto;position:static;
-    /* CORREÇÃO 4 (Responsivo): Resetar gap para layout horizontal */
-    gap: 10px;
+    grid-row:1;
+    flex-direction:row;
+    align-items:center;
+    justify-content:space-between;
+
+    position:sticky; /* em vez de static */
+    top:0;
+    left:auto;
+    width:auto;
+    height:auto;
+
+    z-index:1000;
+    gap:10px;
+  }
+
+  /* IMPORTANTE: como o grid vira 1 coluna, reseta o conteúdo */
+  .collect-content{
+    grid-column:1;
   }
   .collect-sidebar .qs-logo img{
     width:108px;
@@ -491,7 +537,15 @@ button.danger{background:#b00020;color:#fff;border:none;}
   
   /* Responsivo para a nova toolbar */
   #new-toolbar.collect-toolbar {
-    grid-template-columns: 1fr; /* Empilha as 3 colunas */
+    display: grid;
+    /* Usar frações ou percentagens flexíveis em vez de pixels fixos onde for possível */
+    grid-template-columns: minmax(300px, 1.2fr) 1fr 1fr; 
+    gap: 20px;
+    background: #3a1d5e;
+    padding: 24px;
+    border-radius: 10px;
+    margin-bottom: 24px;
+    max-width: 100%; /* Não deixa a toolbar ser maior que o container */
   }
 
   /* Ajuste responsivo para os filtros */
@@ -575,7 +629,7 @@ button.danger{background:#b00020;color:#fff;border:none;}
 }
 
 #new-toolbar .form-group label {
-  font-weight: 600;
+  font-weight: 400;
   color: #eee; /* Labels brancos/cinza-claro */
   font-size: 0.95rem;
   white-space: nowrap; /* Impede que a label quebre a linha */
@@ -601,7 +655,7 @@ button.danger{background:#b00020;color:#fff;border:none;}
 #new-toolbar .pill-btn.pill-muted {
   background: #e5def0;
   color: #3a2a54;
-  font-weight: 700;
+  font-weight: 400;
   margin-top: 8px;
   width: 100%;
 }
@@ -610,7 +664,7 @@ button.danger{background:#b00020;color:#fff;border:none;}
 #new-toolbar .groups-title {
   color: #fff; /* Título "GRUPOS A COLETAR" branco */
   text-transform: uppercase;
-  font-weight: 700;
+  font-weight: 400;
   margin-bottom: 12px;
   text-align: center; /* CORREÇÃO: Centraliza o título */
 }
@@ -636,7 +690,7 @@ button.danger{background:#b00020;color:#fff;border:none;}
 /* CORREÇÃO: Diminui o padding vertical */
 #new-toolbar .pill-btn {
   padding: 10px 16px; 
-  font-weight: 700;
+  font-weight: 500;
   font-size: 0.9rem;
   text-transform: uppercase;
 }
@@ -692,4 +746,40 @@ button.danger{background:#b00020;color:#fff;border:none;}
   cursor: pointer;
   text-transform: uppercase;
   font-size: 0.85rem;
+}
+
+/* =================== CORREÇÃO DE LARGURA AO ROLAR =================== */
+html, body {
+  overflow-x: hidden !important; /* Impede scroll lateral */
+}
+
+.collect-layout,
+.collect-content,
+#new-toolbar.collect-toolbar {
+  max-width: 100vw !important;   /* Nunca ultrapassa a largura da tela */
+  overflow-x: hidden !important;
+  box-sizing: border-box;
+}
+
+#groups-container {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Corrige grids que “esticam” indevidamente */
+.collect-toolbar,
+#new-toolbar.collect-toolbar {
+  grid-template-columns: minmax(320px, 1fr) minmax(260px, 1fr) minmax(220px, 1fr);
+}
+
+.item-row {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Se houver margens negativas, garante que não empurrem o layout */
+body, .collect-layout, .collect-content {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
 }
