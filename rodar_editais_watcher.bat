@@ -2,6 +2,9 @@
 cd /d "%~dp0"
 title Quintessa Editais Watcher - Automacao
 
+REM --- CORRECAO 1: Define o PYTHONPATH para a pasta atual (raiz) ---
+set "PYTHONPATH=%~dp0"
+
 echo ==========================================
 echo      INICIANDO EDITAIS WATCHER
 echo ==========================================
@@ -28,6 +31,7 @@ if %errorlevel% neq 0 goto ERROR_VENV
 echo [4/6] Instalando dependencias (aguarde, pode demorar)...
 pip install --upgrade pip >nul 2>&1
 pip install fastapi uvicorn gspread google-auth google-auth-oauthlib requests feedparser beautifulsoup4 dateparser pytz python-dateutil pandas python-dotenv google-api-python-client cloudscraper curl_cffi playwright
+REM --- CORRECAO 2: Comando goto na mesma linha ---
 if %errorlevel% neq 0 goto ERROR_PIP
 
 :: 5. Instalacao do Navegador (Playwright)
@@ -49,14 +53,16 @@ echo    SERVIDOR ONLINE: http://localhost:8000
 echo    (Nao feche esta janela enquanto usar)
 echo ==========================================
 echo.
-uvicorn backend.api:app --host 0.0.0.0 --port 8000
+
+REM --- CORRECAO 3: Executa via 'python -m uvicorn' para garantir imports corretos ---
+python -m uvicorn backend.api:app --host 0.0.0.0 --port 8000
 
 echo.
-echo [INFO] Servidor finalizado pelo usuario.
+echo [INFO] Servidor finalizado pelo utilizador.
 pause
 exit /b
 
-:: --- BLOCOS DE ERRO (Para voce saber o que aconteceu) ---
+:: --- BLOCOS DE ERRO ---
 
 :ERROR_PYTHON
 echo.
@@ -75,7 +81,7 @@ exit /b
 :ERROR_PIP
 echo.
 echo [ERRO FATAL] Falha ao instalar bibliotecas.
-echo Solucao: Verifique sua internet e se nao ha bloqueio de firewall.
+echo Solucao: Verifique a sua internet e se nao ha bloqueio de firewall.
 pause
 exit /b
 
