@@ -21,8 +21,8 @@ from .core.domain import (
 from .core.perplexity_core import call_perplexity_chat, count_tokens_from_url
 
 # --- CONFIGURAÇÃO DE SEGURANÇA ---
-# URL do seu JSON (Gist RAW). Substitua pelo seu link real!
-USERS_DB_URL = "https://gist.githubusercontent.com/SEU_USUARIO/.../raw/users.json"
+# URL do seu JSON (Gist RAW)
+USERS_DB_URL = "https://gist.githubusercontent.com/amandarosab/32a9b4bf6b2f523d78962667fd63759e/raw/users.json"
 SECRET_COOKIE_NAME = "quintessa_session"
 # Contexto de criptografia para verificar as senhas
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -37,7 +37,7 @@ else:
 
 FRONTEND_DIR = ROOT_DIR / "frontend"
 
-app = FastAPI(title="Editais Watcher API", version="1.0.0")
+app = FastAPI(title="Automação de editais", version="1.0.0")
 
 # Servir arquivos estáticos (CSS/JS)
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="static")
