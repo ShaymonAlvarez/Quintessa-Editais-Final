@@ -20,23 +20,35 @@ from .core.domain import (
 )
 from .core.perplexity_core import call_perplexity_chat, count_tokens_from_url
 # --- AJUSTE DE CAMINHOS PARA EXECUTÁVEL (PyInstaller) ---
+# --- AJUSTE DE CAMINHOS PARA EXECUTÁVEL ---
 if getattr(sys, 'frozen', False):
-    # Se estiver rodando como EXE, a pasta temporária é sys._MEIPASS
-    ROOT_DIR = Path(sys._MEIPASS)
+    # Se estiver rodando como EXE:
+    
+    # 1. Arquivos embutidos (Frontend, templates) ficam na pasta temporária (_MEIPASS)
+    INTERNAL_DIR = Path(sys._MEIPASS)
+    
+    # 2. Arquivos externos (config.json) ficam na mesma pasta do arquivo .exe
+    EXTERNAL_DIR = Path(sys.executable).parent
 else:
-    # Se estiver rodando como script normal
-    ROOT_DIR = Path(__file__).resolve().parent.parent
+    # Se estiver rodando como script normal (python api.py)
+    INTERNAL_DIR = Path(__file__).resolve().parent.parent
+    EXTERNAL_DIR = INTERNAL_DIR
+
+ROOT_DIR = INTERNAL_DIR # Mantemos compatibilidade se usar ROOT_DIR em outros lugares para coisas internas
 
 # --- CONFIGURAÇÃO DE SEGURANÇA ---
 def load_config():
-    """Carrega a URL do banco de usuários do config.json"""
+    """Carrega a URL do banco de usuários do config.json (EXTERNO)"""
     try:
-        # Tenta carregar do mesmo diretório da app
-        config_path = ROOT_DIR / "config.json"
+        # Agora buscamos no EXTERNAL_DIR (ao lado do executável)
+        config_path = EXTERNAL_DIR / "config.json"
+        
         if config_path.exists():
             with open(config_path, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
                 return cfg.get("users_db_url", "")
+        else:
+            print(f"[AVISO] config.json não encontrado em: {config_path}")
     except Exception as e:
         print(f"Erro ao carregar config.json: {e}")
     return ""
@@ -48,7 +60,7 @@ if not USERS_DB_URL:
 SECRET_COOKIE_NAME = "quintessa_session"
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
-FRONTEND_DIR = ROOT_DIR / "frontend"
+FRONTEND_DIR = INTERNAL_DIR / "frontend"
 
 app = FastAPI(title="Editais Watcher API", version="1.0.0")
 
