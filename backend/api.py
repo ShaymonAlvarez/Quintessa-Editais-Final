@@ -37,7 +37,7 @@ else:
 
 FRONTEND_DIR = ROOT_DIR / "frontend"
 
-app = FastAPI(title="Automação de editais", version="1.0.0")
+app = FastAPI(title="Editais Watcher API", version="1.0.0")
 
 # Servir arquivos estáticos (CSS/JS)
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="static")
