@@ -1,25 +1,17 @@
-import hashlib
-import os
-import binascii
+from passlib.context import CryptContext
+
+# Usar argon2 em vez de bcrypt (mais compatível e moderno)
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 def gerar_hash_seguro(senha):
     """
-    Gera um hash seguro usando PBKDF2 (padrão nativo do Python).
-    Não requer bibliotecas externas.
+    Gera um hash seguro usando argon2.
     """
-    # 1. Cria um "sal" aleatório de 16 bytes
-    salt = os.urandom(16)
-    
-    # 2. Gera o hash usando SHA256 e 100.000 iterações (Padrão seguro)
-    pwd_hash = hashlib.pbkdf2_hmac('sha256', senha.encode('utf-8'), salt, 100000)
-    
-    # 3. Retorna no formato: salt_hex$hash_hex
-    # (Precisamos guardar o sal junto para conseguir verificar a senha depois)
-    return f"{binascii.hexlify(salt).decode('ascii')}${binascii.hexlify(pwd_hash).decode('ascii')}"
+    return pwd_context.hash(senha)
 
 def main():
     print("==========================================")
-    print("   GERADOR DE SENHAS (SEM DEPENDÊNCIAS)")
+    print("   GERADOR DE SENHAS (ARGON2)")
     print("==========================================")
     
     email = input("Digite o e-mail do usuário: ")
