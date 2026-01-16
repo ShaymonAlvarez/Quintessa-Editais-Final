@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Automação de Editais – Início</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --purple:#572d81;
+      --white:#ffffff;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      /* Fonte "Barlow" (como na tarefa anterior) */
+      font-family: "Barlow", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:var(--purple);
+      color:var(--white);
+      display:flex;
+      flex-direction:column;
+      min-height:100%;
+    }
+    .topbar{
+      display:flex;
+      align-items:center;
+      padding:20px 28px;
+    }
+    .topbar img{
+      height:44px;
+      width:auto;
+      display:block;
+    }
+    .hero{
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:24px;
+      gap:28px;
+    }
+    .title{
+      font-weight:800;
+      font-size: clamp(28px, 4vw, 44px);
+      letter-spacing:1px;
+      text-transform: uppercase;
+    }
+    .btns{
+      display:flex;
+      gap:28px;
+      flex-wrap:wrap;
+      justify-content:center;
+    }
+    .cta{
+      appearance:none;
+      border:none;
+      background:var(--white);
+      color:var(--purple);
+      font-weight:700;
+      letter-spacing:.5px;
+      padding:16px 28px;
+      border-radius:999px;
+      cursor:pointer;
+      font-size: clamp(14px, 1.5vw, 16px);
+      min-width:260px;
+      box-shadow:0 2px 0 rgba(0,0,0,.1);
+      transition: transform .06s ease, box-shadow .06s ease, opacity .15s ease;
+      text-transform:uppercase;
+    }
+    .cta:active{ transform: translateY(1px); box-shadow:0 1px 0 rgba(0,0,0,.08); }
+    .footer{
+      padding:18px 28px 26px;
+      font-size:12px;
+      line-height:1.45;
+      opacity:.95;
+      max-width:920px;
+    }
+    .footer a{ color:#fff; text-underline-offset:2px; }
+    
+    body{
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <img src="/static/logo.png" alt="QUINTESSA" />
+  </div>
+
+  <main class="hero">
+    <h1 class="title">AUTOMAÇÃO DE EDITAIS</h1>
+    <div class="btns">
+      <button class="cta" onclick="window.location.href='/app#perplexity'">
+        PESQUISA NO PERPLEXITY
+      </button>
+      <button class="cta" onclick="window.location.href='/app#manage'">
+        BUSCA E COLETA
+      </button>
+    </div>
+  </main>
+
+  <footer class="footer">
+    Essa é uma aplicação interna, desenhada especialmente para o Quintessa<br/>
+    Caso precise de ajuda contate: <a href="mailto:gente.gestao@quintessa.org.br">gente.gestao@quintessa.org.br</a><br/>
+    <span id="build-info">Última atualização em: —</span>
+  </footer>
+
+  <script>
+    // Preenche a data/hora no rodapé (formato 11/11/2025 às 17:27)
+    (function(){
+      const el = document.getElementById('build-info');
+      const d = new Date();
+      const pad = n => n.toString().padStart(2,'0');
+      const stamp = `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} às ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      el.textContent = `Última atualização em: ${stamp}`;
+    })();
+  </script>
+</body>
+</html>
