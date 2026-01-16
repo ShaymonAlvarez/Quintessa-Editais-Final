@@ -783,3 +783,16 @@ body, .collect-layout, .collect-content {
   margin-right: 0 !important;
   padding-right: 0 !important;
 }
+
+/* --- Estilo do Botão de Logout --- */
+.btn-logout {
+    margin-top: auto; /* Empurra o botão para o final da sidebar se usar flexbox */
+    background-color: #ff4d4d; /* Cor vermelha para indicar saída */
+    color: white;
+    border: none;
+    font-weight: bold;
+}
+
+.btn-logout:hover {
+    background-color: #cc0000; /* Vermelho mais escuro ao passar o mouse */
+}

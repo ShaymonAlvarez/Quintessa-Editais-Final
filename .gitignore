@@ -26,3 +26,15 @@ Thumbs.db
 node_modules/
 dist/
 build/
+
+# output de arquivo .exe
+output
+_internal
+*.exe
+*.dll
+*.lib
+*.exp
+
+
+
+
