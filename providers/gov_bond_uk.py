@@ -42,7 +42,7 @@ KEYWORDS_PT_EN = [
     "grant", "fund", "opportunity", "award", "programme", "call", "trust", "foundation", "challenge", "fellowship", "water", 
     "sustainability", "climate", "environment", "development", "social", "entrepreneurship", "impact", 
     "technology", "development bank", "acceleration", "innovation", "tender", "consultancy"
-    ]
+]
 
 GENERIC_LABELS = ["read more", "find out more", "apply", "view", "click here", "visit website", "more info", "details"]
 

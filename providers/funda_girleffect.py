@@ -29,7 +29,7 @@ KEYWORDS = [
     "Terms of Reference", "ToR", "Consultancy", "Consultant", "Expression of Interest", "Water", "Sustainability",
     "Climate", "Environment", "Development", "Social", "Entrepreneurship", "Impact", "Technology", 
     "Development Bank", "Acceleration", "Innovation",
-    ]
+]
 
 def check_keywords(text: str) -> bool:
     """Verifica se alguma das palavras-chave está presente no texto."""

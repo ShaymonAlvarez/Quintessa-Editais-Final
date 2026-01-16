@@ -30,7 +30,7 @@ KEYWORDS = [
     'ACCELERATION', 'INNOVATION', 'WATER', 'SUSTAINABILITY', 'CLIMATE', 
     'ENVIRONMENT', 'DEVELOPMENT', 'SOCIAL', 'ENTREPRENEURSHIP', 'IMPACT', 
     'TECHNOLOGY', 'DEVELOPMENT BANK',
-    ]
+]
 
 def fetch(regex=None, cfg=None, _debug: bool = False):
     """

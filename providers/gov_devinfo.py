@@ -35,7 +35,7 @@ KEYWORDS_FILTER = [
     "request for proposal", "rfp", "call", "grant", "program", "award", "opportunity", "water", "sustainability",
     "climate", "environment", "development", "social", "entrepreneurship", "impact", "technology", "development bank",
     "acceleration", "innovation", "tender", "consultancy",
-    ]
+]
 
 # Regex captura data no início (ex: "December 26, 2024 ...")
 RE_DATE_START = re.compile(r"^([A-Za-z]+\s+\d{1,2},?\s+\d{4})", re.IGNORECASE)

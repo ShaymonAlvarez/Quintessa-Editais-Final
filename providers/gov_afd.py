@@ -37,7 +37,7 @@ KEYWORDS_FILTER = [
     "Edital", "Chamada", "Programa", "Prêmio", "Credenciamento", "Call for projects", "Call for expressions of interest", 
     "Call for proposals", "Program", "Award", "Prize", "Grant", "Fund", "Tender", "Water", "Sustainability",
     "Climate", "Environment", "Development", "Social", "Entrepreneurship", "Impact", "Technology", "Development Bank",
-    ]
+]
 def fetch(regex, cfg, _debug: bool = False):
     """
     Coleta chamadas de projetos do site da AFD.
