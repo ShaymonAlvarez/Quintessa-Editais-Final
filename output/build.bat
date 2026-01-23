@@ -1,11 +1,9 @@
 @echo off
 chcp 65001 >nul
+setlocal EnableDelayedExpansion
 
 :: ============================================================================
 :: QUINTESSA EDITAIS - Build do Executavel
-:: ============================================================================
-:: Localização: output\build.bat
-:: Uso: Executar este arquivo para gerar o QuintessaEditais.exe
 :: ============================================================================
 
 echo.
@@ -22,31 +20,137 @@ cd /d "%PROJECT_DIR%"
 echo Diretorio do projeto: %PROJECT_DIR%
 echo.
 
-echo [1/4] Verificando PyInstaller...
-pip show pyinstaller >nul 2>&1
-if %ERRORLEVEL% neq 0 (
-    echo Instalando PyInstaller...
-    pip install pyinstaller
+:: ============================================================================
+:: DETECTA O PYTHON
+:: ============================================================================
+echo [0/5] Detectando Python...
+
+set "PYTHON_CMD="
+set "VENV_DIR=%PROJECT_DIR%\venv"
+
+:: Primeiro tenta o venv local
+if exist "%VENV_DIR%\Scripts\python.exe" (
+    set "PYTHON_CMD=%VENV_DIR%\Scripts\python.exe"
+    echo    Usando venv local: !PYTHON_CMD!
+    goto :python_found
 )
 
-echo [2/4] Limpando builds anteriores...
+:: Tenta python no PATH
+where python >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+    for /f "delims=" %%i in ('where python') do (
+        set "PYTHON_CMD=%%i"
+        goto :check_python
+    )
+)
+
+:: Tenta py launcher
+where py >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+    set "PYTHON_CMD=py"
+    echo    Usando py launcher
+    goto :python_found
+)
+
+:: Tenta caminhos comuns
+for %%P in (
+    "C:\Python312\python.exe"
+    "C:\Python311\python.exe"
+    "C:\Python310\python.exe"
+    "%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
+    "%LOCALAPPDATA%\Programs\Python\Python311\python.exe"
+    "%LOCALAPPDATA%\Programs\Python\Python310\python.exe"
+) do (
+    if exist %%P (
+        set "PYTHON_CMD=%%~P"
+        goto :check_python
+    )
+)
+
+echo.
+echo ERRO: Python nao encontrado!
+echo Instale Python 3.10+ de https://www.python.org/downloads/
+pause
+exit /b 1
+
+:check_python
+:: Verifica se o Python encontrado funciona
+"!PYTHON_CMD!" --version >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo    Python em !PYTHON_CMD! nao funciona, tentando outro...
+    set "PYTHON_CMD="
+    goto :python_found
+)
+
+:python_found
+if "!PYTHON_CMD!"=="" (
+    echo ERRO: Nenhum Python valido encontrado!
+    pause
+    exit /b 1
+)
+
+echo    Python: !PYTHON_CMD!
+"!PYTHON_CMD!" --version
+echo.
+
+:: ============================================================================
+:: INSTALA PYINSTALLER
+:: ============================================================================
+echo [1/5] Verificando PyInstaller...
+
+"!PYTHON_CMD!" -m pip show pyinstaller >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo    Instalando PyInstaller...
+    "!PYTHON_CMD!" -m pip install --user pyinstaller
+    if %ERRORLEVEL% neq 0 (
+        echo    Tentando sem --user...
+        "!PYTHON_CMD!" -m pip install pyinstaller
+    )
+)
+
+:: Verifica se PyInstaller está disponível
+"!PYTHON_CMD!" -m PyInstaller --version >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo.
+    echo ERRO: PyInstaller nao foi instalado corretamente!
+    echo Tente manualmente: python -m pip install pyinstaller
+    pause
+    exit /b 1
+)
+
+echo    PyInstaller OK!
+echo.
+
+:: ============================================================================
+:: LIMPA BUILDS ANTERIORES
+:: ============================================================================
+echo [2/5] Limpando builds anteriores...
 if exist "%OUTPUT_DIR%build" rmdir /s /q "%OUTPUT_DIR%build"
 if exist "%OUTPUT_DIR%dist" rmdir /s /q "%OUTPUT_DIR%dist"
 
-echo [3/4] Gerando executavel (aguarde alguns minutos)...
+:: ============================================================================
+:: GERA O EXECUTAVEL
+:: ============================================================================
+echo [3/5] Gerando executavel (aguarde alguns minutos)...
 echo.
 
-pyinstaller --clean --distpath "%OUTPUT_DIR%dist" --workpath "%OUTPUT_DIR%build" "%OUTPUT_DIR%QuintessaEditais.spec"
+"!PYTHON_CMD!" -m PyInstaller --clean --distpath "%OUTPUT_DIR%dist" --workpath "%OUTPUT_DIR%build" "%OUTPUT_DIR%QuintessaEditais.spec"
 
 if %ERRORLEVEL% neq 0 (
     echo.
-    echo ERRO: Falha na geracao do executavel!
+    echo ============================================================
+    echo    ERRO: Falha na geracao do executavel!
+    echo ============================================================
+    echo.
+    echo Verifique se todas as dependencias estao instaladas:
+    echo    python -m pip install -r requirements.txt
+    echo.
     pause
     exit /b 1
 )
 
 echo.
-echo [4/4] Organizando arquivos para distribuicao...
+echo [4/5] Organizando arquivos para distribuicao...
 
 if not exist "%OUTPUT_DIR%distribuicao" mkdir "%OUTPUT_DIR%distribuicao"
 
@@ -69,8 +173,10 @@ if exist "%PROJECT_DIR%\.env" (
 )
 
 echo.
+echo [5/5] Concluido!
+echo.
 echo ============================================================
-echo    BUILD CONCLUIDO!
+echo    BUILD CONCLUIDO COM SUCESSO!
 echo ============================================================
 echo.
 echo Pasta de saida: %OUTPUT_DIR%distribuicao\
@@ -84,4 +190,6 @@ echo.
 echo ============================================================
 
 explorer "%OUTPUT_DIR%distribuicao"
+
+endlocal
 pause

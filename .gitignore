@@ -12,6 +12,7 @@ venv/
 # OAuth / API secrets (VERY important)
 client_secret.json
 token.json
+service_account.json
 
 # Logs & misc
 *.log

@@ -21,6 +21,7 @@ icon_path = PROJECT_DIR / 'editais.ico'
 ICON = str(icon_path) if icon_path.exists() else None
 
 # Lista completa de Hidden Imports
+# NOTA: Usar nomes de módulos Python, não nomes de pacotes pip
 hidden_imports = [
     # ===== Servidor & API =====
     'uvicorn',
@@ -36,7 +37,6 @@ hidden_imports = [
     'uvicorn.lifespan',
     'uvicorn.lifespan.on',
     'uvicorn.lifespan.off',
-    'engineio.async_drivers.asgi',
     'fastapi',
     'fastapi.applications',
     'fastapi.routing',
@@ -51,8 +51,7 @@ hidden_imports = [
     'starlette.middleware.cors',
     'starlette.middleware.errors',
     'starlette.staticfiles',
-    'python-multipart',
-    'multipart',
+    'multipart',  # python-multipart instala como 'multipart'
     
     # ===== Login & Segurança =====
     'passlib',
@@ -63,9 +62,8 @@ hidden_imports = [
     'argon2',
     'argon2._password_hasher',
     'argon2.low_level',
-    'argon2_cffi',
-    'argon2_cffi_bindings',
-    'argon2_cffi_bindings._ffi',
+    'argon2.exceptions',
+    'argon2.profiles',
     
     # ===== Google Sheets & Auth (Service Account + OAuth) =====
     'gspread',
@@ -98,7 +96,6 @@ hidden_imports = [
     'pyasn1.type',
     'pyasn1_modules',
     'pyasn1_modules.rfc2459',
-    'cachetools',
     
     # ===== Web Scraping & Data =====
     'requests',
@@ -129,7 +126,6 @@ hidden_imports = [
     'playwright.sync_api',
     'playwright.async_api',
     'playwright._impl',
-    'playwright._impl._api_types',
     
     # ===== Processamento & Utilidades =====
     'pandas',
@@ -156,7 +152,6 @@ hidden_imports = [
     
     # ===== Dotenv =====
     'dotenv',
-    'python-dotenv',
     
     # ===== Pydantic (FastAPI) =====
     'pydantic',
@@ -172,8 +167,6 @@ hidden_imports = [
     'anyio._backends._asyncio',
     'sniffio',
     'h11',
-    'httpcore',
-    'httpx',
 ]
 
 # Arquivos de dados a incluir (caminhos relativos ao PROJECT_DIR)
@@ -182,14 +175,6 @@ datas = [
     (str(PROJECT_DIR / 'frontend'), 'frontend'),
     (str(PROJECT_DIR / 'providers'), 'providers'),
     (str(PROJECT_DIR / 'setup_oauth_env.py'), '.'),
-]
-
-# Dados adicionais de pacotes
-collect_data = [
-    'dateparser',
-    'tzdata',
-    'certifi',
-    'gspread',
 ]
 
 # Configuração da análise
@@ -215,14 +200,22 @@ a = Analysis(
     optimize=0,
 )
 
-# Coleta dados adicionais dos pacotes
+# Coleta dados adicionais dos pacotes (de forma segura)
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
-for pkg in collect_data:
+collect_data_pkgs = ['dateparser', 'tzdata', 'certifi', 'gspread']
+
+for pkg in collect_data_pkgs:
     try:
-        a.datas += collect_data_files(pkg)
+        pkg_datas = collect_data_files(pkg)
+        # Garante que cada entrada tem 3 elementos (src, dest, type)
+        for item in pkg_datas:
+            if len(item) == 2:
+                a.datas.append((item[0], item[1], 'DATA'))
+            elif len(item) >= 3:
+                a.datas.append(item)
     except Exception as e:
-        print(f"[AVISO] Não foi possível coletar dados de {pkg}: {e}")
+        print(f"[AVISO] Nao foi possivel coletar dados de {pkg}: {e}")
 
 # Adiciona submódulos do dateparser (tem muitos)
 try:
@@ -243,7 +236,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,  # Compressão (reduz tamanho)
+    upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,  # Window Based (sem console)
