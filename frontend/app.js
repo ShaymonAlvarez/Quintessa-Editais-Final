@@ -732,6 +732,7 @@ async function handleSaveMinDays() {
 }
 
 // Coleta: botão principal (agora com progresso, cancelamento e execução por grupo)
+// ATUALIZADO: Também executa coleta universal dos links cadastrados
 async function handleRunCollect() {
   const btn = document.getElementById("btn-run-collect");
   const resultDiv = document.getElementById("collect-result");
@@ -754,11 +755,6 @@ async function handleRunCollect() {
       ? selectedGroups.slice()
       : (state.availableGroups || []).slice();
 
-  if (!groupsToRun.length) {
-    resultDiv.innerHTML = "<em>Nenhum grupo disponível para coleta.</em>";
-    return;
-  }
-
   collectCancelRequested = false;
   resultDiv.innerHTML = "";
   btn.disabled = true;
@@ -766,68 +762,147 @@ async function handleRunCollect() {
   setManageInteractivity(true);
   if (progressOverlay && progressBar && progressLabel) {
     progressOverlay.classList.remove("hidden");
-    progressBar.max = groupsToRun.length;
+    progressBar.max = 100;
     progressBar.value = 0;
     progressLabel.textContent = "Iniciando coleta…";
   }
 
   let totalFixed = 0;
   let totalNew = 0;
+  let totalUniversal = 0;
   const perGroupSummary = [];
+  const universalSummary = [];
 
   try {
-    for (let i = 0; i < groupsToRun.length; i++) {
-      const g = groupsToRun[i];
+    // ============= PARTE 1: Coleta tradicional (providers fixos) =============
+    if (groupsToRun.length > 0) {
+      const providerSteps = groupsToRun.length;
+      
+      for (let i = 0; i < groupsToRun.length; i++) {
+        const g = groupsToRun[i];
 
-      if (progressLabel) {
-        progressLabel.textContent = `Coletando grupo ${g} (${
-          i + 1
-        } de ${groupsToRun.length})…`;
-      }
-
-      try {
-        const data = await apiPost("/api/collect", {
-          groups: [g],
-          min_days: state.minDays,
-        });
-        const res = data.result || {};
-        renderErrors(data.errors);
-        const fixed = res.fixed_links || 0;
-        const ne = res.new_items || 0;
-        totalFixed += fixed;
-        totalNew += ne;
-        perGroupSummary.push(
-          `${g}: links corrigidos ${fixed}, novos itens ${ne}`
-        );
-      } catch (e) {
-        perGroupSummary.push(`${g}: erro na coleta (${e})`);
-      }
-
-      if (progressBar) {
-        progressBar.value = i + 1;
-      }
-
-      if (collectCancelRequested && i < groupsToRun.length - 1) {
         if (progressLabel) {
-          progressLabel.textContent =
-            "Cancelado pelo usuário. Interrompendo após o grupo atual…";
+          progressLabel.textContent = `[Providers] Coletando grupo ${g} (${i + 1} de ${providerSteps})…`;
         }
-        break;
+
+        try {
+          const data = await apiPost("/api/collect", {
+            groups: [g],
+            min_days: state.minDays,
+          });
+          const res = data.result || {};
+          renderErrors(data.errors);
+          const fixed = res.fixed_links || 0;
+          const ne = res.new_items || 0;
+          totalFixed += fixed;
+          totalNew += ne;
+          perGroupSummary.push(
+            `${g}: links corrigidos ${fixed}, novos itens ${ne}`
+          );
+        } catch (e) {
+          perGroupSummary.push(`${g}: erro na coleta (${e})`);
+        }
+
+        if (progressBar) {
+          progressBar.value = Math.round(((i + 1) / providerSteps) * 50); // 50% para providers
+        }
+
+        if (collectCancelRequested) {
+          if (progressLabel) {
+            progressLabel.textContent =
+              "Cancelado pelo usuário. Interrompendo…";
+          }
+          break;
+        }
       }
     }
 
-    const cancelouAntesDoFim =
-      collectCancelRequested && perGroupSummary.length < groupsToRun.length;
+    // ============= PARTE 2: Coleta universal (links cadastrados via IA) =============
+    if (!collectCancelRequested && linksState.links && linksState.links.length > 0) {
+      const activeLinks = linksState.links.filter(l => l.ativo === "true");
+      
+      if (activeLinks.length > 0) {
+        if (progressLabel) {
+          progressLabel.textContent = `[IA] Processando ${activeLinks.length} link(s) cadastrado(s)…`;
+        }
+        if (progressBar) {
+          progressBar.value = 50;
+        }
+
+        try {
+          // Obtém valor máximo do filtro, se configurado
+          const maxValue = state.valueMax || null;
+          
+          const data = await apiPost("/api/collect/universal", {
+            min_days: state.minDays,
+            max_value: maxValue,
+            model_id: "sonar", // Modelo mais barato por padrão
+          });
+
+          const res = data.result || {};
+          renderErrors(data.errors);
+
+          totalUniversal = res.items_saved || res.all_items?.length || 0;
+          
+          // Estatísticas por grupo
+          if (res.stats_by_group) {
+            for (const [grupo, stats] of Object.entries(res.stats_by_group)) {
+              universalSummary.push(
+                `${grupo}: ${stats.total} itens de ${stats.links} link(s)`
+              );
+            }
+          }
+          
+          // Erros específicos
+          if (res.errors && res.errors.length > 0) {
+            for (const err of res.errors) {
+              universalSummary.push(
+                `⚠️ ${err.url}: ${err.error}`
+              );
+            }
+          }
+
+        } catch (e) {
+          universalSummary.push(`Erro na coleta universal: ${e}`);
+        }
+        
+        if (progressBar) {
+          progressBar.value = 100;
+        }
+        
+        // Recarrega links para atualizar status
+        await loadLinks();
+      }
+    }
+
+    const cancelouAntesDoFim = collectCancelRequested;
 
     const headerLine = cancelouAntesDoFim
-      ? "⚠️ Coleta cancelada antes de completar todos os grupos.<br/>"
+      ? "⚠️ Coleta cancelada antes de completar.<br/>"
       : "✔️ Coleta concluída.<br/>";
 
-    resultDiv.innerHTML =
-      `${headerLine}` +
-      `Links corrigidos: ${totalFixed}<br/>` +
-      `Novos itens gravados (sem duplicar): ${totalNew}<br/><br/>` +
-      perGroupSummary.map((s) => `• ${s}`).join("<br/>");
+    let resultHtml = `${headerLine}`;
+    
+    // Resultado dos providers
+    if (perGroupSummary.length > 0) {
+      resultHtml += `<br/><strong>📦 Providers fixos:</strong><br/>`;
+      resultHtml += `Links corrigidos: ${totalFixed}<br/>`;
+      resultHtml += `Novos itens: ${totalNew}<br/>`;
+      resultHtml += perGroupSummary.map((s) => `• ${s}`).join("<br/>");
+    }
+    
+    // Resultado da coleta universal
+    if (universalSummary.length > 0 || totalUniversal > 0) {
+      resultHtml += `<br/><br/><strong>🤖 Coleta Universal (IA):</strong><br/>`;
+      resultHtml += `Itens extraídos: ${totalUniversal}<br/>`;
+      if (universalSummary.length > 0) {
+        resultHtml += universalSummary.map((s) => `• ${s}`).join("<br/>");
+      }
+    } else if (linksState.links.length === 0) {
+      resultHtml += `<br/><br/><em>💡 Cadastre links na seção acima para usar a coleta inteligente via IA.</em>`;
+    }
+
+    resultDiv.innerHTML = resultHtml;
 
     await renderGroups();
   } finally {
@@ -1587,3 +1662,248 @@ async function toggleDiagSection() {
   if (!sec) return;
   sec.classList.toggle("hidden");
 }
+
+// ============= GERENCIAMENTO DE LINKS CADASTRADOS (COLETA UNIVERSAL) =============
+
+// Estado dos links
+const linksState = {
+  links: [],
+  loading: false,
+};
+
+// Carrega links do backend
+async function loadLinks() {
+  const listDiv = document.getElementById("links-list");
+  if (!listDiv) return;
+  
+  linksState.loading = true;
+  listDiv.innerHTML = "<em>Carregando links cadastrados...</em>";
+  
+  try {
+    const data = await apiGet("/api/links");
+    linksState.links = data.links || [];
+    renderLinks();
+  } catch (e) {
+    listDiv.innerHTML = `<em style="color:#EF476F;">Erro ao carregar links: ${e}</em>`;
+  } finally {
+    linksState.loading = false;
+  }
+}
+
+// Renderiza a lista de links
+function renderLinks() {
+  const listDiv = document.getElementById("links-list");
+  if (!listDiv) return;
+  
+  if (linksState.links.length === 0) {
+    listDiv.innerHTML = `<em style="color:rgba(255,255,255,0.6);">
+      Nenhum link cadastrado ainda. Clique em "+ Adicionar Link" para começar.
+    </em>`;
+    return;
+  }
+  
+  listDiv.innerHTML = linksState.links.map(link => {
+    const isActive = link.ativo === "true";
+    const statusClass = isActive ? "active" : "inactive";
+    const toggleLabel = isActive ? "Desativar" : "Ativar";
+    
+    // Formata nome do link
+    const displayName = link.nome || extractDomain(link.url);
+    
+    // Stats da última execução
+    let statsHtml = "";
+    if (link.last_run) {
+      const lastDate = new Date(link.last_run);
+      const formattedDate = lastDate.toLocaleDateString("pt-BR");
+      const statusIcon = link.last_status === "ok" ? "✅" : "❌";
+      statsHtml = `${statusIcon} ${formattedDate} (${link.last_items || 0} itens)`;
+    } else {
+      statsHtml = "Nunca executado";
+    }
+    
+    return `
+      <div class="link-card" data-uid="${link.uid}">
+        <div class="link-status ${statusClass}" title="${isActive ? 'Ativo' : 'Inativo'}"></div>
+        <div class="link-info">
+          <span class="link-name">${escapeHtml(displayName)}</span>
+          <span class="link-url" title="${escapeHtml(link.url)}">${escapeHtml(link.url)}</span>
+        </div>
+        <span class="link-grupo">${escapeHtml(link.grupo)}</span>
+        <span class="link-stats">${statsHtml}</span>
+        <div class="link-actions">
+          <button class="btn-toggle-link" data-uid="${link.uid}" data-active="${link.ativo}">${toggleLabel}</button>
+          <button class="btn-delete-link" data-uid="${link.uid}">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+  
+  // Adiciona event listeners
+  listDiv.querySelectorAll(".btn-toggle-link").forEach(btn => {
+    btn.addEventListener("click", () => toggleLinkActive(btn.dataset.uid, btn.dataset.active));
+  });
+  
+  listDiv.querySelectorAll(".btn-delete-link").forEach(btn => {
+    btn.addEventListener("click", () => deleteLinkById(btn.dataset.uid));
+  });
+}
+
+// Extrai domínio de uma URL
+function extractDomain(url) {
+  try {
+    const u = new URL(url);
+    return u.hostname.replace("www.", "");
+  } catch {
+    return url;
+  }
+}
+
+// Escapa HTML para evitar XSS
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text || "";
+  return div.innerHTML;
+}
+
+// Adiciona novo link
+async function addNewLink() {
+  const urlInput = document.getElementById("new-link-url");
+  const grupoSelect = document.getElementById("new-link-grupo");
+  const nomeInput = document.getElementById("new-link-nome");
+  
+  const url = (urlInput?.value || "").trim();
+  const grupo = grupoSelect?.value || "";
+  const nome = (nomeInput?.value || "").trim();
+  
+  if (!url) {
+    alert("Por favor, informe a URL do site.");
+    urlInput?.focus();
+    return;
+  }
+  
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    alert("A URL deve começar com http:// ou https://");
+    urlInput?.focus();
+    return;
+  }
+  
+  if (!grupo) {
+    alert("Por favor, selecione um grupo.");
+    grupoSelect?.focus();
+    return;
+  }
+  
+  try {
+    const data = await apiPost("/api/links", { url, grupo, nome });
+    if (data.link) {
+      linksState.links.push(data.link);
+      renderLinks();
+      
+      // Limpa formulário
+      urlInput.value = "";
+      nomeInput.value = "";
+      
+      // Fecha formulário
+      const formDiv = document.getElementById("links-form");
+      if (formDiv) formDiv.classList.add("hidden");
+      
+      alert("Link adicionado com sucesso!");
+    }
+  } catch (e) {
+    alert("Erro ao adicionar link: " + e);
+  }
+}
+
+// Toggle ativo/inativo
+async function toggleLinkActive(uid, currentActive) {
+  const newActive = currentActive === "true" ? "false" : "true";
+  
+  try {
+    await fetch(`/api/links/${uid}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ativo: newActive }),
+    });
+    
+    // Atualiza estado local
+    const link = linksState.links.find(l => l.uid === uid);
+    if (link) {
+      link.ativo = newActive;
+      renderLinks();
+    }
+  } catch (e) {
+    alert("Erro ao atualizar link: " + e);
+  }
+}
+
+// Deleta link
+async function deleteLinkById(uid) {
+  if (!confirm("Tem certeza que deseja remover este link?")) {
+    return;
+  }
+  
+  try {
+    await fetch(`/api/links/${uid}`, { method: "DELETE" });
+    
+    // Remove do estado local
+    linksState.links = linksState.links.filter(l => l.uid !== uid);
+    renderLinks();
+  } catch (e) {
+    alert("Erro ao remover link: " + e);
+  }
+}
+
+// Popula o select de grupos no formulário
+function populateLinksGroupSelect() {
+  const select = document.getElementById("new-link-grupo");
+  if (!select) return;
+  
+  select.innerHTML = '<option value="">Selecione um grupo...</option>';
+  
+  for (const g of state.availableGroups) {
+    // Ignora filantropia
+    if (/filantrop/i.test(g)) continue;
+    
+    const opt = document.createElement("option");
+    opt.value = g;
+    opt.textContent = g.replace(/\s*\/\s*/g, '/');
+    select.appendChild(opt);
+  }
+}
+
+// Inicializa a seção de links quando o DOM carrega
+document.addEventListener("DOMContentLoaded", () => {
+  // Toggle do formulário de adicionar link
+  const btnToggle = document.getElementById("btn-toggle-links-form");
+  const formDiv = document.getElementById("links-form");
+  
+  if (btnToggle && formDiv) {
+    btnToggle.addEventListener("click", () => {
+      formDiv.classList.toggle("hidden");
+      if (!formDiv.classList.contains("hidden")) {
+        populateLinksGroupSelect();
+        document.getElementById("new-link-url")?.focus();
+      }
+    });
+  }
+  
+  // Botão salvar link
+  const btnSave = document.getElementById("btn-save-link");
+  if (btnSave) {
+    btnSave.addEventListener("click", addNewLink);
+  }
+  
+  // Botão cancelar
+  const btnCancel = document.getElementById("btn-cancel-link");
+  if (btnCancel && formDiv) {
+    btnCancel.addEventListener("click", () => {
+      formDiv.classList.add("hidden");
+    });
+  }
+  
+  // Carrega links iniciais (após um pequeno delay para garantir que config carregou)
+  setTimeout(() => {
+    loadLinks();
+    populateLinksGroupSelect();
+  }, 500);
+});

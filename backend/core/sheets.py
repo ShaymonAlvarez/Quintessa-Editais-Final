@@ -348,3 +348,176 @@ def ensure_ws_perplexity():
     except Exception as e:
         push_error("ensure_ws_perplexity", e)
         raise
+
+
+# ============= ABA DE LINKS CADASTRADOS (COLETA UNIVERSAL) =============
+
+# Cabeçalho da aba 'links_cadastrados'
+LINKS_HEADER: List[str] = [
+    "uid",           # ID único do link
+    "url",           # URL do site/página a coletar
+    "grupo",         # Grupo associado (Governo/Multilaterais, etc.)
+    "nome",          # Nome personalizado/apelido
+    "ativo",         # Se está ativo para coleta (true/false)
+    "created_at",    # Data de criação
+    "last_run",      # Última execução
+    "last_status",   # Status da última execução (ok/erro)
+    "last_items",    # Qtd de itens encontrados na última execução
+]
+
+
+def ensure_ws_links():
+    """
+    Garante a aba 'links_cadastrados' com o cabeçalho correto e a retorna.
+    Esta aba armazena os links que o usuário cadastra para coleta universal.
+    """
+    sh, *_ = open_sheet()
+    header = LINKS_HEADER
+    try:
+        try:
+            ws = sh.worksheet("links_cadastrados")
+        except gspread.exceptions.WorksheetNotFound:
+            ws = sh.add_worksheet("links_cadastrados", rows=500, cols=len(header))
+            ws.append_row(header)
+        existing = ws.row_values(1)
+        if existing != header:
+            new_header = existing[:] + [h for h in header if h not in existing]
+            ws.resize(
+                rows=max(ws.row_count, 500),
+                cols=max(len(new_header), ws.col_count),
+            )
+            ws.update("1:1", [new_header])
+        return ws
+    except Exception as e:
+        push_error("ensure_ws_links", e)
+        raise
+
+
+def read_links() -> List[Dict[str, str]]:
+    """
+    Lê todos os links cadastrados da aba 'links_cadastrados'.
+    Retorna lista de dicionários.
+    """
+    try:
+        ws = ensure_ws_links()
+        rows = ws.get_all_values()
+    except Exception as e:
+        push_error("read_links", e)
+        return []
+
+    if len(rows) <= 1:
+        return []
+
+    header = rows[0]
+    result = []
+    for r in rows[1:]:
+        if not r or not r[0]:  # ignora linhas vazias
+            continue
+        item = {}
+        for i, col in enumerate(header):
+            item[col] = r[i] if i < len(r) else ""
+        result.append(item)
+    return result
+
+
+def add_link(url: str, grupo: str, nome: str = "") -> Dict[str, str]:
+    """
+    Adiciona um novo link cadastrado.
+    Retorna o item criado com seu UID.
+    """
+    import hashlib
+    
+    ws = ensure_ws_links()
+    uid = hashlib.sha256(f"{url}|{grupo}".encode()).hexdigest()[:16]
+    now = datetime.utcnow().isoformat()
+    
+    new_row = [
+        uid,
+        url,
+        grupo,
+        nome or "",
+        "true",  # ativo por padrão
+        now,     # created_at
+        "",      # last_run
+        "",      # last_status
+        "",      # last_items
+    ]
+    
+    try:
+        ws.append_row(new_row, value_input_option="RAW")
+    except Exception as e:
+        push_error("add_link", e)
+        raise
+    
+    return {
+        "uid": uid,
+        "url": url,
+        "grupo": grupo,
+        "nome": nome,
+        "ativo": "true",
+        "created_at": now,
+        "last_run": "",
+        "last_status": "",
+        "last_items": "",
+    }
+
+
+def update_link(uid: str, updates: Dict[str, str]) -> bool:
+    """
+    Atualiza campos de um link existente por UID.
+    Campos permitidos: url, grupo, nome, ativo
+    Retorna True se encontrou e atualizou.
+    """
+    ws = ensure_ws_links()
+    rows = ws.get_all_values()
+    
+    if len(rows) <= 1:
+        return False
+    
+    header = rows[0]
+    uid_idx = header.index("uid") if "uid" in header else 0
+    
+    for row_num, r in enumerate(rows[1:], start=2):
+        if len(r) > uid_idx and r[uid_idx] == uid:
+            # Encontrou a linha, atualiza os campos
+            for key, value in updates.items():
+                if key in header and key != "uid":  # não deixa alterar uid
+                    col_idx = header.index(key) + 1  # 1-based para gspread
+                    ws.update_cell(row_num, col_idx, value)
+            return True
+    
+    return False
+
+
+def delete_link(uid: str) -> bool:
+    """
+    Remove um link por UID.
+    Retorna True se encontrou e removeu.
+    """
+    ws = ensure_ws_links()
+    rows = ws.get_all_values()
+    
+    if len(rows) <= 1:
+        return False
+    
+    header = rows[0]
+    uid_idx = header.index("uid") if "uid" in header else 0
+    
+    for row_num, r in enumerate(rows[1:], start=2):
+        if len(r) > uid_idx and r[uid_idx] == uid:
+            ws.delete_rows(row_num)
+            return True
+    
+    return False
+
+
+def update_link_run_status(uid: str, status: str, items_count: int) -> bool:
+    """
+    Atualiza o status da última execução de um link.
+    Chamado após a coleta universal processar um link.
+    """
+    return update_link(uid, {
+        "last_run": datetime.utcnow().isoformat(),
+        "last_status": status,
+        "last_items": str(items_count),
+    })

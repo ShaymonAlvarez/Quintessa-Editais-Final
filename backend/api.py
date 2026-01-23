@@ -12,13 +12,15 @@ from pydantic import BaseModel
 from passlib.context import CryptContext
 
 # Importações existentes do seu projeto
-from .core.errors import init_error_bus, get_errors
+from .core.errors import init_error_bus, get_errors, push_error
 from .core.domain import (
     get_app_config, update_config_pairs, update_group_regex,
     run_collect, get_items_for_group, update_items,
     delete_items_by_uids, clear_all_items, get_diag_providers,
 )
 from .core.perplexity_core import call_perplexity_chat, count_tokens_from_url
+from .core.sheets import read_links, add_link, update_link, delete_link
+from .core.universal_extractor import extract_from_url, extract_from_links
 # --- AJUSTE DE CAMINHOS PARA EXECUTÁVEL (PyInstaller) ---
 # --- AJUSTE DE CAMINHOS PARA EXECUTÁVEL ---
 if getattr(sys, 'frozen', False):
@@ -206,6 +208,21 @@ class DiagRequest(BaseModel):
     re_latam: str = ""
 
 
+# ============= MODELOS PARA LINKS CADASTRADOS =============
+
+class LinkCreateRequest(BaseModel):
+    url: str
+    grupo: str
+    nome: str = ""
+
+
+class LinkUpdateRequest(BaseModel):
+    url: Optional[str] = None
+    grupo: Optional[str] = None
+    nome: Optional[str] = None
+    ativo: Optional[str] = None
+
+
 class PerplexityRequest(BaseModel):
     prompt: str
     modelo_api: str
@@ -219,8 +236,21 @@ class PerplexityRequest(BaseModel):
     edital_link: Optional[str] = None
     edital_pages: Optional[int] = None
     link_tokens: Optional[int] = 0
+
+
 class TokenCountRequest(BaseModel):
     url: str
+
+
+# ============= MODELO PARA COLETA UNIVERSAL =============
+
+class UniversalCollectRequest(BaseModel):
+    """Requisição para coleta universal usando links cadastrados."""
+    min_days: int = 0
+    max_value: Optional[float] = None
+    model_id: str = "sonar"
+    link_uid: Optional[str] = None  # Se fornecido, coleta só esse link
+
 
 #---------- ENDPOINTS DE CONFIG ----------
 @app.get("/api/config")
@@ -309,6 +339,113 @@ async def api_collect(request: Request, req: CollectRequest):
     }
 
 
+# ============= ENDPOINT DE COLETA UNIVERSAL (VIA IA) =============
+
+@app.post("/api/collect/universal")
+async def api_collect_universal(request: Request, req: UniversalCollectRequest):
+    """
+    Executa coleta universal usando IA (Perplexity) nos links cadastrados.
+    
+    Esta é a coleta inteligente que extrai editais de qualquer site
+    usando processamento de linguagem natural.
+    
+    - min_days: prazo mínimo em dias para filtrar editais
+    - max_value: valor máximo em R$ (opcional)
+    - model_id: modelo Perplexity (sonar, sonar-pro, etc)
+    - link_uid: se fornecido, coleta apenas este link específico
+    """
+    if request.cookies.get(SECRET_COOKIE_NAME) != "authenticated":
+        raise HTTPException(status_code=401, detail="Não autenticado")
+    
+    init_error_bus()
+    
+    # Carrega links cadastrados
+    links = read_links()
+    
+    if not links:
+        return {
+            "result": {
+                "all_items": [],
+                "stats_by_group": {},
+                "errors": [],
+                "processed": 0,
+                "total": 0,
+                "message": "Nenhum link cadastrado para coleta."
+            },
+            "errors": get_errors(),
+        }
+    
+    # Se link_uid fornecido, filtra para coletar só esse
+    if req.link_uid:
+        links = [l for l in links if l.get("uid") == req.link_uid]
+        if not links:
+            raise HTTPException(status_code=404, detail="Link não encontrado")
+    
+    # Carrega regex por grupo da config
+    cfg = get_app_config()
+    regex_by_group = cfg.get("regex_by_group", {})
+    
+    # Executa extração
+    result = extract_from_links(
+        links=links,
+        min_days=req.min_days,
+        regex_by_group=regex_by_group,
+        max_value=req.max_value,
+        model_id=req.model_id,
+    )
+    
+    # Se encontrou itens, grava na planilha
+    if result.get("all_items"):
+        from .core.domain import add_row, sha_id
+        from .core.sheets import open_sheet, append_items_dedup, read_items_cached, invalidate_items_cache
+        
+        try:
+            _, _, _, ws_items, _ = open_sheet()
+            header, body = read_items_cached()
+            
+            new_rows = []
+            for item in result["all_items"]:
+                row = [
+                    sha_id(
+                        item.get("group", ""),
+                        item.get("source", ""),
+                        item.get("title", ""),
+                        item.get("link", ""),
+                    ),
+                    item.get("group", ""),
+                    item.get("source", ""),
+                    item.get("title", ""),
+                    item.get("link", ""),
+                    item.get("deadline", ""),
+                    item.get("published", ""),
+                    item.get("agency", ""),
+                    "",  # region
+                    "{}",  # raw_json
+                    "",  # created_at será preenchido
+                    "",  # seen
+                    "pendente",  # status
+                    item.get("description", ""),  # notes
+                    "",  # do_not_show
+                ]
+                new_rows.append(row)
+            
+            if new_rows:
+                from datetime import datetime
+                for row in new_rows:
+                    row[10] = datetime.utcnow().isoformat()  # created_at
+                
+                append_items_dedup(ws_items, header, body, new_rows)
+                result["items_saved"] = len(new_rows)
+        except Exception as e:
+            push_error("api_collect_universal_save", e)
+            result["save_error"] = str(e)
+    
+    return {
+        "result": result,
+        "errors": get_errors(),
+    }
+
+
 @app.get("/api/items")
 async def api_get_items(request: Request, group: str, status: Optional[str] = None):
     """
@@ -369,6 +506,109 @@ async def api_clear_items(request: Request):
     result = clear_all_items()
     return {
         "result": result,
+        "errors": get_errors(),
+    }
+
+
+# ============= ENDPOINTS DE LINKS CADASTRADOS (COLETA UNIVERSAL) =============
+
+@app.get("/api/links")
+async def api_get_links(request: Request):
+    """
+    Retorna todos os links cadastrados para coleta universal.
+    """
+    if request.cookies.get(SECRET_COOKIE_NAME) != "authenticated":
+        raise HTTPException(status_code=401, detail="Não autenticado")
+    
+    init_error_bus()
+    links = read_links()
+    return {
+        "links": links,
+        "errors": get_errors(),
+    }
+
+
+@app.post("/api/links")
+async def api_add_link(request: Request, req: LinkCreateRequest):
+    """
+    Adiciona um novo link para coleta universal.
+    
+    Body esperado: { "url": "...", "grupo": "...", "nome": "..." }
+    """
+    if request.cookies.get(SECRET_COOKIE_NAME) != "authenticated":
+        raise HTTPException(status_code=401, detail="Não autenticado")
+    
+    if not req.url:
+        raise HTTPException(status_code=400, detail="URL é obrigatório")
+    if not req.grupo:
+        raise HTTPException(status_code=400, detail="Grupo é obrigatório")
+    
+    init_error_bus()
+    try:
+        link = add_link(req.url, req.grupo, req.nome)
+        return {
+            "link": link,
+            "errors": get_errors(),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/links/{uid}")
+async def api_update_link(request: Request, uid: str, req: LinkUpdateRequest):
+    """
+    Atualiza um link existente.
+    
+    Path: /api/links/{uid}
+    Body: campos a atualizar (url, grupo, nome, ativo)
+    """
+    if request.cookies.get(SECRET_COOKIE_NAME) != "authenticated":
+        raise HTTPException(status_code=401, detail="Não autenticado")
+    
+    init_error_bus()
+    
+    # Monta dict apenas com campos fornecidos
+    updates = {}
+    if req.url is not None:
+        updates["url"] = req.url
+    if req.grupo is not None:
+        updates["grupo"] = req.grupo
+    if req.nome is not None:
+        updates["nome"] = req.nome
+    if req.ativo is not None:
+        updates["ativo"] = req.ativo
+    
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nenhum campo para atualizar")
+    
+    success = update_link(uid, updates)
+    if not success:
+        raise HTTPException(status_code=404, detail="Link não encontrado")
+    
+    return {
+        "success": True,
+        "errors": get_errors(),
+    }
+
+
+@app.delete("/api/links/{uid}")
+async def api_delete_link(request: Request, uid: str):
+    """
+    Remove um link cadastrado.
+    
+    Path: /api/links/{uid}
+    """
+    if request.cookies.get(SECRET_COOKIE_NAME) != "authenticated":
+        raise HTTPException(status_code=401, detail="Não autenticado")
+    
+    init_error_bus()
+    
+    success = delete_link(uid)
+    if not success:
+        raise HTTPException(status_code=404, detail="Link não encontrado")
+    
+    return {
+        "success": True,
         "errors": get_errors(),
     }
 
