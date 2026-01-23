@@ -2,20 +2,10 @@
 
 Este guia explica como usar a **Coleta Universal via IA** do sistema Quintessa Editais.
 
-> **⚠️ ATUALIZAÇÃO:** A coleta tradicional (providers fixos) foi descontinuada. Todo o sistema agora opera **exclusivamente** através da coleta inteligente via IA. Os links dos providers originais foram pré-cadastrados automaticamente.
 
 ## 📋 Visão Geral
 
 A Coleta Universal permite extrair editais de **qualquer site** automaticamente usando Inteligência Artificial (Perplexity API), sem necessidade de criar scrapers específicos para cada fonte.
-
-### Antes vs Depois
-
-| Aspecto | Coleta Tradicional (Providers) | Coleta Universal (IA) |
-|---------|-------------------------------|----------------------|
-| Novos sites | Requer código novo | Só cadastrar o link |
-| Manutenção | Alta (sites mudam) | Baixa (IA se adapta) |
-| Custo | Gratuito | ~R$ 0,002 por extração |
-| Flexibilidade | Baixa | Alta |
 
 ## 🔧 Como Usar
 
