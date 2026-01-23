@@ -1,6 +1,8 @@
 # 🚀 Guia de Operação - Coleta Universal de Editais
 
-Este guia explica como usar a nova funcionalidade de **Coleta Universal via IA** do sistema Quintessa Editais.
+Este guia explica como usar a **Coleta Universal via IA** do sistema Quintessa Editais.
+
+> **⚠️ ATUALIZAÇÃO:** A coleta tradicional (providers fixos) foi descontinuada. Todo o sistema agora opera **exclusivamente** através da coleta inteligente via IA. Os links dos providers originais foram pré-cadastrados automaticamente.
 
 ## 📋 Visão Geral
 
