@@ -21,6 +21,7 @@ from .core.domain import (
 from .core.perplexity_core import call_perplexity_chat, count_tokens_from_url
 from .core.sheets import read_links, add_link, update_link, delete_link
 from .core.universal_extractor import extract_from_url, extract_from_links
+from .core.providers_loader import clear_groups_cache
 # --- AJUSTE DE CAMINHOS PARA EXECUTÁVEL (PyInstaller) ---
 # --- AJUSTE DE CAMINHOS PARA EXECUTÁVEL ---
 if getattr(sys, 'frozen', False):
@@ -546,6 +547,7 @@ async def api_add_link(request: Request, req: LinkCreateRequest):
     init_error_bus()
     try:
         link = add_link(req.url, req.grupo, req.nome)
+        clear_groups_cache()  # Limpa cache para refletir novo grupo
         return {
             "link": link,
             "errors": get_errors(),
@@ -585,6 +587,8 @@ async def api_update_link(request: Request, uid: str, req: LinkUpdateRequest):
     if not success:
         raise HTTPException(status_code=404, detail="Link não encontrado")
     
+    clear_groups_cache()  # Limpa cache caso grupo tenha sido alterado
+    
     return {
         "success": True,
         "errors": get_errors(),
@@ -606,6 +610,8 @@ async def api_delete_link(request: Request, uid: str):
     success = delete_link(uid)
     if not success:
         raise HTTPException(status_code=404, detail="Link não encontrado")
+    
+    clear_groups_cache()  # Limpa cache pois grupo pode não ter mais links
     
     return {
         "success": True,

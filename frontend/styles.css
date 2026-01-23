@@ -133,6 +133,9 @@ body.collect-theme .app-main{padding:0;}
 .groups-column{min-width:300px;}
 .groups-title{font-weight:700;margin-bottom:8px;}
 .groups-list label{display:block;margin:8px 0;}
+.groups-info{font-size:0.9rem;color:#bbb;line-height:1.5;}
+.groups-info p{margin:4px 0;}
+.groups-info strong{color:#06D6A0;}
 
 /* Direita: ações empilhadas */
 .actions-column{display:flex;flex-direction:column;gap:12px;align-items:stretch;}

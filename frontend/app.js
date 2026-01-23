@@ -283,26 +283,11 @@ function renderConfigUI() {
 }
 
 // Renderiza lista de checkboxes de grupos
+// NOTA: Com coleta universal, esta função não é mais necessária
+// Mantida vazia para compatibilidade
 function renderGroupsCheckboxes() {
-  const container = document.getElementById("groups-checkboxes");
-  if (!container) return;
-  container.innerHTML = "";
-  for (const g of state.availableGroups) {
-    // Não renderiza grupos relacionados a filantropia na UI de coleta
-    // (removido checkbox solicitado). Ignora nomes que contenham "filantrop".
-    if (/filantrop/i.test(g)) continue;
-    // Formata apenas para exibição: remove espaços antes/depois de '/'
-    const display = g.replace(/\s*\/\s*/g, '/');
-    const id = `grp-${g.replace(/[^a-z0-9]/gi, "_")}`;
-    const wrapper = document.createElement("div");
-    wrapper.innerHTML = `
-      <label>
-        <input type="checkbox" id="${id}" data-group="${g}" checked />
-        ${display}
-      </label>
-    `;
-    container.appendChild(wrapper);
-  }
+  // A coleta universal processa todos os links ativos automaticamente
+  // Não há mais necessidade de selecionar grupos
 }
 
 // ---------- Renderização de grupos / itens ----------
@@ -732,7 +717,8 @@ async function handleSaveMinDays() {
 }
 
 // Coleta: botão principal (agora com progresso, cancelamento e execução por grupo)
-// ATUALIZADO: Também executa coleta universal dos links cadastrados
+// COLETA UNIVERSAL - Usa SOMENTE IA (Perplexity) para extrair editais
+// Os providers tradicionais foram descontinuados
 async function handleRunCollect() {
   const btn = document.getElementById("btn-run-collect");
   const resultDiv = document.getElementById("collect-result");
@@ -741,19 +727,29 @@ async function handleRunCollect() {
   const progressLabel = document.getElementById("collect-progress-label");
   if (!btn || !resultDiv) return;
 
-  const selectedGroups = [];
-  document
-    .querySelectorAll("#groups-checkboxes input[type=checkbox]")
-    .forEach((chk) => {
-      if (chk.checked) {
-        selectedGroups.push(chk.dataset.group);
-      }
-    });
+  // Verifica se há links cadastrados
+  if (!linksState.links || linksState.links.length === 0) {
+    resultDiv.innerHTML = `
+      <div style="padding:20px;background:rgba(239,71,111,0.2);border-radius:8px;border:1px solid rgba(239,71,111,0.4);">
+        <strong>⚠️ Nenhum link cadastrado!</strong><br/><br/>
+        Cadastre links na seção acima para usar a coleta via IA.<br/>
+        Clique em "+ Adicionar Link" para começar.
+      </div>
+    `;
+    return;
+  }
 
-  let groupsToRun =
-    selectedGroups.length > 0
-      ? selectedGroups.slice()
-      : (state.availableGroups || []).slice();
+  const activeLinks = linksState.links.filter(l => l.ativo === "true");
+  
+  if (activeLinks.length === 0) {
+    resultDiv.innerHTML = `
+      <div style="padding:20px;background:rgba(255,209,102,0.2);border-radius:8px;border:1px solid rgba(255,209,102,0.4);">
+        <strong>⚠️ Todos os links estão desativados!</strong><br/><br/>
+        Ative pelo menos um link para executar a coleta.
+      </div>
+    `;
+    return;
+  }
 
   collectCancelRequested = false;
   resultDiv.innerHTML = "";
@@ -764,147 +760,97 @@ async function handleRunCollect() {
     progressOverlay.classList.remove("hidden");
     progressBar.max = 100;
     progressBar.value = 0;
-    progressLabel.textContent = "Iniciando coleta…";
+    progressLabel.textContent = `Iniciando coleta de ${activeLinks.length} link(s)…`;
   }
 
-  let totalFixed = 0;
-  let totalNew = 0;
-  let totalUniversal = 0;
-  const perGroupSummary = [];
-  const universalSummary = [];
+  let totalExtracted = 0;
+  const summaryLines = [];
 
   try {
-    // ============= PARTE 1: Coleta tradicional (providers fixos) =============
-    if (groupsToRun.length > 0) {
-      const providerSteps = groupsToRun.length;
-      
-      for (let i = 0; i < groupsToRun.length; i++) {
-        const g = groupsToRun[i];
-
-        if (progressLabel) {
-          progressLabel.textContent = `[Providers] Coletando grupo ${g} (${i + 1} de ${providerSteps})…`;
-        }
-
-        try {
-          const data = await apiPost("/api/collect", {
-            groups: [g],
-            min_days: state.minDays,
-          });
-          const res = data.result || {};
-          renderErrors(data.errors);
-          const fixed = res.fixed_links || 0;
-          const ne = res.new_items || 0;
-          totalFixed += fixed;
-          totalNew += ne;
-          perGroupSummary.push(
-            `${g}: links corrigidos ${fixed}, novos itens ${ne}`
-          );
-        } catch (e) {
-          perGroupSummary.push(`${g}: erro na coleta (${e})`);
-        }
-
-        if (progressBar) {
-          progressBar.value = Math.round(((i + 1) / providerSteps) * 50); // 50% para providers
-        }
-
-        if (collectCancelRequested) {
-          if (progressLabel) {
-            progressLabel.textContent =
-              "Cancelado pelo usuário. Interrompendo…";
-          }
-          break;
-        }
-      }
+    if (progressLabel) {
+      progressLabel.textContent = `🤖 Processando ${activeLinks.length} link(s) via IA…`;
+    }
+    if (progressBar) {
+      progressBar.value = 10;
     }
 
-    // ============= PARTE 2: Coleta universal (links cadastrados via IA) =============
-    if (!collectCancelRequested && linksState.links && linksState.links.length > 0) {
-      const activeLinks = linksState.links.filter(l => l.ativo === "true");
-      
-      if (activeLinks.length > 0) {
-        if (progressLabel) {
-          progressLabel.textContent = `[IA] Processando ${activeLinks.length} link(s) cadastrado(s)…`;
-        }
-        if (progressBar) {
-          progressBar.value = 50;
-        }
-
-        try {
-          // Obtém valor máximo do filtro, se configurado
-          const maxValue = state.valueMax || null;
-          
-          const data = await apiPost("/api/collect/universal", {
-            min_days: state.minDays,
-            max_value: maxValue,
-            model_id: "sonar", // Modelo mais barato por padrão
-          });
-
-          const res = data.result || {};
-          renderErrors(data.errors);
-
-          totalUniversal = res.items_saved || res.all_items?.length || 0;
-          
-          // Estatísticas por grupo
-          if (res.stats_by_group) {
-            for (const [grupo, stats] of Object.entries(res.stats_by_group)) {
-              universalSummary.push(
-                `${grupo}: ${stats.total} itens de ${stats.links} link(s)`
-              );
-            }
-          }
-          
-          // Erros específicos
-          if (res.errors && res.errors.length > 0) {
-            for (const err of res.errors) {
-              universalSummary.push(
-                `⚠️ ${err.url}: ${err.error}`
-              );
-            }
-          }
-
-        } catch (e) {
-          universalSummary.push(`Erro na coleta universal: ${e}`);
-        }
-        
-        if (progressBar) {
-          progressBar.value = 100;
-        }
-        
-        // Recarrega links para atualizar status
-        await loadLinks();
-      }
-    }
-
-    const cancelouAntesDoFim = collectCancelRequested;
-
-    const headerLine = cancelouAntesDoFim
-      ? "⚠️ Coleta cancelada antes de completar.<br/>"
-      : "✔️ Coleta concluída.<br/>";
-
-    let resultHtml = `${headerLine}`;
+    // Obtém valor máximo do filtro, se configurado
+    const maxValue = state.valueMax || null;
     
-    // Resultado dos providers
-    if (perGroupSummary.length > 0) {
-      resultHtml += `<br/><strong>📦 Providers fixos:</strong><br/>`;
-      resultHtml += `Links corrigidos: ${totalFixed}<br/>`;
-      resultHtml += `Novos itens: ${totalNew}<br/>`;
-      resultHtml += perGroupSummary.map((s) => `• ${s}`).join("<br/>");
+    const data = await apiPost("/api/collect/universal", {
+      min_days: state.minDays,
+      max_value: maxValue,
+      model_id: "sonar", // Modelo mais barato e rápido
+    });
+
+    if (progressBar) {
+      progressBar.value = 90;
+    }
+
+    const res = data.result || {};
+    renderErrors(data.errors);
+
+    totalExtracted = res.items_saved || res.all_items?.length || 0;
+    
+    // Estatísticas por grupo
+    if (res.stats_by_group) {
+      for (const [grupo, stats] of Object.entries(res.stats_by_group)) {
+        summaryLines.push(
+          `<strong>${grupo}</strong>: ${stats.total} editais de ${stats.links} link(s)`
+        );
+      }
     }
     
-    // Resultado da coleta universal
-    if (universalSummary.length > 0 || totalUniversal > 0) {
-      resultHtml += `<br/><br/><strong>🤖 Coleta Universal (IA):</strong><br/>`;
-      resultHtml += `Itens extraídos: ${totalUniversal}<br/>`;
-      if (universalSummary.length > 0) {
-        resultHtml += universalSummary.map((s) => `• ${s}`).join("<br/>");
+    // Erros específicos
+    if (res.errors && res.errors.length > 0) {
+      for (const err of res.errors) {
+        const shortUrl = err.url.length > 50 ? err.url.substring(0, 50) + "…" : err.url;
+        summaryLines.push(
+          `<span style="color:#EF476F;">❌ ${shortUrl}: ${err.error}</span>`
+        );
       }
-    } else if (linksState.links.length === 0) {
-      resultHtml += `<br/><br/><em>💡 Cadastre links na seção acima para usar a coleta inteligente via IA.</em>`;
+    }
+
+    if (progressBar) {
+      progressBar.value = 100;
+    }
+    
+    // Recarrega links para atualizar status
+    await loadLinks();
+
+    // Monta resultado
+    const cancelou = collectCancelRequested;
+    const headerLine = cancelou
+      ? "⚠️ Coleta cancelada."
+      : "✅ Coleta concluída!";
+
+    let resultHtml = `
+      <div style="padding:20px;background:rgba(6,214,160,0.15);border-radius:8px;border:1px solid rgba(6,214,160,0.3);margin-bottom:16px;">
+        <strong style="font-size:1.1rem;">${headerLine}</strong><br/><br/>
+        📊 <strong>Editais extraídos:</strong> ${totalExtracted}<br/>
+        🔗 <strong>Links processados:</strong> ${res.processed || activeLinks.length} de ${res.total || activeLinks.length}
+      </div>
+    `;
+    
+    if (summaryLines.length > 0) {
+      resultHtml += `
+        <div style="padding:16px;background:rgba(255,255,255,0.05);border-radius:8px;">
+          <strong>📋 Detalhes por grupo:</strong><br/><br/>
+          ${summaryLines.join("<br/>")}
+        </div>
+      `;
     }
 
     resultDiv.innerHTML = resultHtml;
 
     await renderGroups();
+  } catch (e) {
+    resultDiv.innerHTML = `
+      <div style="padding:20px;background:rgba(239,71,111,0.2);border-radius:8px;border:1px solid rgba(239,71,111,0.4);">
+        <strong>❌ Erro na coleta:</strong><br/><br/>
+        ${e.message || e}
+      </div>
+    `;
   } finally {
     btn.disabled = false;
     setManageInteractivity(false);

@@ -49,10 +49,10 @@ def load_providers():
 @lru_cache(maxsize=1)
 def get_available_groups() -> list[str]:
     """
-    Retorna estritamente as categorias oficiais permitidas.
-    Filtra qualquer grupo vindo de providers que não esteja nesta lista.
+    Retorna os grupos únicos cadastrados na aba links_cadastrados.
+    Mantém compatibilidade com a estrutura anterior.
     """
-    # 1. Definição ÚNICA das categorias permitidas [SOLICITAÇÃO DO USUÁRIO]
+    # Definição das categorias oficiais permitidas
     OFFICIAL_GROUPS = [
         "América Latina/Brasil",
         "Corporativo/Aceleradoras",
@@ -63,28 +63,34 @@ def get_available_groups() -> list[str]:
     validated_groups = set()
 
     try:
-        mods = load_providers() 
-        for m in mods:
-            # Pega o grupo e limpa espaços
-            raw_group = getattr(m, "PROVIDER", {}).get("group", "").strip()
+        # Importa dinamicamente para evitar import circular
+        from .sheets import read_links
+        
+        links = read_links()
+        for link in links:
+            raw_group = link.get("grupo", "").strip()
             if not raw_group:
                 continue
             
-            # Normaliza: remove espaços em volta da barra (ex: "Brasil / Latam" -> "Brasil/Latam")
+            # Normaliza: remove espaços em volta da barra
             norm_group = raw_group.replace(" / ", "/").replace(" /", "/").replace("/ ", "/")
             
-            # SÓ adiciona se for exatamente um dos 4 oficiais
+            # Adiciona se for exatamente um dos 4 oficiais
             if norm_group in OFFICIAL_GROUPS:
                 validated_groups.add(norm_group)
                 
     except Exception as e:
-        push_error("get_available_groups_critical", e)
+        push_error("get_available_groups_from_links", e)
     
-    # Se a lista validada estiver vazia (devido a erros), retorna a oficial por segurança
+    # Se a lista validada estiver vazia, retorna a oficial por segurança
     if not validated_groups:
         return sorted(OFFICIAL_GROUPS, key=lambda s: s.lower())
         
     return sorted(list(validated_groups), key=lambda s: s.lower())
+
+def clear_groups_cache() -> None:
+    """Limpa o cache de grupos (chamar após adicionar/remover links)."""
+    get_available_groups.cache_clear()
 
 def reload_provider_modules() -> None:
     try:

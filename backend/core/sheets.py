@@ -379,6 +379,8 @@ def ensure_ws_links():
         except gspread.exceptions.WorksheetNotFound:
             ws = sh.add_worksheet("links_cadastrados", rows=500, cols=len(header))
             ws.append_row(header)
+            # PRÉ-INSERE LINKS DOS PROVIDERS ORIGINAIS
+            _seed_default_links(ws)
         existing = ws.row_values(1)
         if existing != header:
             new_header = existing[:] + [h for h in header if h not in existing]
@@ -391,6 +393,51 @@ def ensure_ws_links():
     except Exception as e:
         push_error("ensure_ws_links", e)
         raise
+
+
+def _seed_default_links(ws) -> int:
+    """
+    Insere links padrão extraídos dos providers originais.
+    Chamado apenas quando a aba é criada pela primeira vez.
+    Retorna quantidade de links inseridos.
+    """
+    import hashlib
+    from .default_links import get_all_provider_links
+    
+    links = get_all_provider_links()
+    if not links:
+        return 0
+    
+    rows_to_add = []
+    now = datetime.utcnow().isoformat()
+    
+    for link in links:
+        nome = link.get("nome", "")
+        url = link.get("url", "")
+        grupo = link.get("grupo", "")
+        
+        uid = hashlib.sha256(f"{url}|{grupo}".encode()).hexdigest()[:16]
+        
+        rows_to_add.append([
+            uid,
+            url,
+            grupo,
+            nome,
+            "true",  # ativo
+            now,     # created_at
+            "",      # last_run
+            "",      # last_status
+            "",      # last_items
+        ])
+    
+    if rows_to_add:
+        try:
+            ws.append_rows(rows_to_add, value_input_option="RAW")
+        except Exception as e:
+            push_error("seed_default_links", e)
+            return 0
+    
+    return len(rows_to_add)
 
 
 def read_links() -> List[Dict[str, str]]:
