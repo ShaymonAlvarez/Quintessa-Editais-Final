@@ -28,8 +28,7 @@ dist/
 build/
 
 # output de arquivo .exe
-output
-_internal
+_internal/
 *.exe
 *.dll
 *.lib

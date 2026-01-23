@@ -5,6 +5,10 @@ Aqui ficam:
 - criação/garantia de abas (config, sources, items, logs, perplexity)
 - leitura e escrita com cache simples
 - helpers para log em planilha
+
+Suporta dois modos de autenticação (em ordem de prioridade):
+1. Service Account (RECOMENDADO) - arquivo service_account.json
+2. OAuth Pessoal (legado) - variáveis no .env
 """
 
 from __future__ import annotations
@@ -13,7 +17,8 @@ from functools import lru_cache
 from typing import Any, Dict, List, Tuple
 
 import gspread
-from google.oauth2.credentials import Credentials
+from google.oauth2.service_account import Credentials as ServiceAccountCredentials
+from google.oauth2.credentials import Credentials as OAuthCredentials
 from google.auth.transport.requests import Request
 
 from . import config
@@ -62,26 +67,67 @@ STATUS_COLORS = {
 @lru_cache(maxsize=1)
 def get_gspread_client() -> gspread.Client:
     """
-    Cria um cliente gspread autorizado via OAuth (refresh_token fixo).
-
-    Usa variáveis de ambiente lidas em config.get_google_oauth().
+    Cria um cliente gspread autorizado.
+    
+    Prioridade de autenticação:
+    1. Service Account (arquivo service_account.json) - RECOMENDADO
+    2. OAuth pessoal (variáveis no .env) - LEGADO
+    
+    Service Account é preferível para distribuição pois:
+    - Não expira
+    - Não requer configuração do usuário final
+    - Mais seguro e profissional
     """
-    oauth = config.get_google_oauth()
-    creds = Credentials(
-        token=None,
-        refresh_token=oauth["refresh_token"],
-        token_uri=oauth["token_uri"],
-        client_id=oauth["client_id"],
-        client_secret=oauth["client_secret"],
-        scopes=config.SCOPES,
-    )
-    if not creds.valid:
+    auth_method = config.get_auth_method()
+    
+    if auth_method == "service_account":
+        # Método 1: Service Account (RECOMENDADO)
         try:
-            creds.refresh(Request())
+            sa_path = config.get_service_account_path()
+            creds = ServiceAccountCredentials.from_service_account_file(
+                str(sa_path),
+                scopes=config.SCOPES
+            )
+            print(f"[AUTH] Usando Service Account: {sa_path.name}")
+            return gspread.authorize(creds)
+        except Exception as e:
+            push_error("Service Account auth", e)
+            raise RuntimeError(
+                f"Erro ao autenticar com Service Account: {e}\n"
+                "Verifique se o arquivo service_account.json é válido."
+            )
+    
+    elif auth_method == "oauth":
+        # Método 2: OAuth pessoal (LEGADO - mantido para compatibilidade)
+        try:
+            oauth = config.get_google_oauth()
+            creds = OAuthCredentials(
+                token=None,
+                refresh_token=oauth["refresh_token"],
+                token_uri=oauth["token_uri"],
+                client_id=oauth["client_id"],
+                client_secret=oauth["client_secret"],
+                scopes=config.SCOPES,
+            )
+            if not creds.valid:
+                creds.refresh(Request())
+            print("[AUTH] Usando OAuth pessoal (modo legado)")
+            return gspread.authorize(creds)
         except Exception as e:
             push_error("OAuth refresh", e)
             raise
-    return gspread.authorize(creds)
+    
+    else:
+        # Nenhum método configurado
+        raise RuntimeError(
+            "Nenhum método de autenticação Google configurado.\n\n"
+            "OPÇÃO RECOMENDADA (Service Account):\n"
+            "  1. Execute: python setup_service_account.py\n"
+            "  2. Coloque o arquivo service_account.json na pasta do executável\n\n"
+            "OPÇÃO LEGADA (OAuth pessoal):\n"
+            "  1. Execute: python setup_oauth_env.py\n"
+            "  2. Configure as variáveis no arquivo .env"
+        )
 
 
 @lru_cache(maxsize=1)
