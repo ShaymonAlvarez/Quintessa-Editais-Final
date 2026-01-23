@@ -31,6 +31,7 @@ if %errorlevel% neq 0 goto ERROR_VENV
 echo [4/6] Instalando dependencias (aguarde, pode demorar)...
 pip install --upgrade pip >nul 2>&1
 pip install fastapi uvicorn gspread google-auth google-auth-oauthlib requests feedparser beautifulsoup4 dateparser pytz python-dateutil pandas python-dotenv google-api-python-client cloudscraper curl_cffi playwright
+pip install -r requirements.txt
 REM --- CORRECAO 2: Comando goto na mesma linha ---
 if %errorlevel% neq 0 goto ERROR_PIP
 
