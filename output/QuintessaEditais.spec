@@ -200,28 +200,55 @@ a = Analysis(
     optimize=0,
 )
 
-# Coleta dados adicionais dos pacotes (de forma segura)
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+# Coleta TODOS os submódulos dos pacotes críticos
+# Isso garante que o executável funcione em qualquer PC sem Python instalado
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, collect_all
 
-collect_data_pkgs = ['dateparser', 'tzdata', 'certifi', 'gspread']
+# Pacotes que precisam de collect_submodules (inclui todos os submódulos)
+collect_submodules_pkgs = [
+    'passlib',           # CRÍTICO - autenticação
+    'argon2',            # CRÍTICO - hashing de senhas
+    'gspread',           # CRÍTICO - Google Sheets
+    'google',            # CRÍTICO - Google Auth
+    'googleapiclient',   # CRÍTICO - Google API
+    'dateparser',        # Parsing de datas
+    'uvicorn',           # Servidor
+    'starlette',         # Framework web
+    'fastapi',           # Framework API
+    'pydantic',          # Validação
+    'pydantic_core',     # Core do Pydantic
+    'anyio',             # Async
+    'bs4',               # BeautifulSoup
+    'lxml',              # Parser XML/HTML
+    'requests',          # HTTP
+    'urllib3',           # HTTP
+    'certifi',           # Certificados SSL
+]
 
+print("\n[BUILD] Coletando submodulos dos pacotes criticos...")
+for pkg in collect_submodules_pkgs:
+    try:
+        submodules = collect_submodules(pkg)
+        a.hiddenimports += submodules
+        print(f"  + {pkg}: {len(submodules)} submodulos")
+    except Exception as e:
+        print(f"  ! {pkg}: {e}")
+
+# Pacotes que precisam de collect_data_files (arquivos de dados)
+collect_data_pkgs = ['dateparser', 'tzdata', 'certifi', 'gspread', 'passlib']
+
+print("\n[BUILD] Coletando arquivos de dados...")
 for pkg in collect_data_pkgs:
     try:
         pkg_datas = collect_data_files(pkg)
-        # Garante que cada entrada tem 3 elementos (src, dest, type)
         for item in pkg_datas:
             if len(item) == 2:
                 a.datas.append((item[0], item[1], 'DATA'))
             elif len(item) >= 3:
                 a.datas.append(item)
+        print(f"  + {pkg}: {len(pkg_datas)} arquivos")
     except Exception as e:
-        print(f"[AVISO] Nao foi possivel coletar dados de {pkg}: {e}")
-
-# Adiciona submódulos do dateparser (tem muitos)
-try:
-    a.hiddenimports += collect_submodules('dateparser')
-except:
-    pass
+        print(f"  ! {pkg}: {e}")
 
 # Empacotamento
 pyz = PYZ(a.pure, a.zipped_data, cipher=None)
