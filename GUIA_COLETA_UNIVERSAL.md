@@ -3,7 +3,55 @@
 Este guia explica como usar a **Coleta Universal via IA** do sistema Quintessa Editais.
 
 
-## 📋 Visão Geral
+## � Configuração Inicial (API Key)
+
+Antes de usar a coleta universal, você precisa configurar a API Key da Perplexity:
+
+### Passo 1: Obter a API Key
+
+1. Acesse: https://www.perplexity.ai/settings/api
+2. Faça login ou crie uma conta
+3. Clique em "Generate" para criar uma nova API Key
+4. Copie a chave (formato: `pplx-xxxxxxxxxxxxxxxxx`)
+
+### Passo 2: Configurar no Sistema
+
+Abra o arquivo `.env` na pasta do projeto e adicione:
+
+```env
+PERPLEXITY_API_KEY="pplx-sua-chave-aqui"
+```
+
+### Passo 3: Reiniciar o Sistema
+
+Após salvar o `.env`, reinicie o servidor para carregar a nova configuração.
+
+### 💸 Custos da API
+
+| Modelo | Custo aproximado | Uso recomendado |
+|--------|------------------|-----------------|
+| Sonar | ~$1 por milhão de tokens | Coleta normal (padrão) |
+| Sonar Pro | ~$5 por milhão de tokens | Páginas complexas |
+
+**Na prática:** Uma coleta de 50 links custa aproximadamente **R$ 0,10 a R$ 0,50**.
+
+### 📦 Distribuição para Outros PCs
+
+Para rodar em outro computador:
+
+1. Copie toda a pasta do projeto
+2. Copie os arquivos de configuração:
+   - `.env` (contém SHEET_URL e PERPLEXITY_API_KEY)
+   - `service_account.json` (credenciais Google Sheets)
+   - `config.json` (configurações gerais)
+3. Instale as dependências: `pip install -r requirements.txt`
+4. Execute: `python run.py`
+
+> ⚠️ **IMPORTANTE**: Nunca compartilhe sua API Key publicamente!
+
+---
+
+## �📋 Visão Geral
 
 A Coleta Universal permite extrair editais de **qualquer site** automaticamente usando Inteligência Artificial (Perplexity API), sem necessidade de criar scrapers específicos para cada fonte.
 
@@ -11,13 +59,14 @@ A Coleta Universal permite extrair editais de **qualquer site** automaticamente 
 
 ### 1. Cadastrar Links
 
-1. Na página de **Coleta e gestão**, localize a seção **"🔗 LINKS CADASTRADOS PARA COLETA"**
-2. Clique em **"+ Adicionar Link"**
-3. Preencha:
-   - **URL do site**: Link da página que lista os editais (não o edital individual!)
+1. Na página de **Coleta e gestão**, clique no botão **"� CADASTRAR LINKS"**
+2. Um modal abrirá mostrando todos os links organizados por grupo
+3. Use a **barra de pesquisa** para verificar se um link já existe
+4. No formulário abaixo, preencha:
+   - **URL do site**: Link da página que lista os editais
    - **Grupo**: Selecione o grupo de classificação
    - **Nome/Apelido**: Opcional, para identificar melhor
-4. Clique em **"Salvar Link"**
+5. Clique em **"💾 Salvar Link"**
 
 #### Exemplos de URLs bons:
 ```
@@ -34,25 +83,29 @@ A Coleta Universal permite extrair editais de **qualquer site** automaticamente 
 
 ### 2. Gerenciar Links
 
-Cada link cadastrado mostra:
+No modal de links, cada link mostra:
 - 🟢 **Verde**: Link ativo (será coletado)
 - 🔴 **Vermelho**: Link inativo (ignorado na coleta)
 - **Status da última execução**: ✅ ok ou ❌ erro
 - **Data e quantidade** de itens encontrados
 
 **Ações disponíveis:**
-- **Ativar/Desativar**: Pause temporariamente um link
-- **🗑️ Excluir**: Remove o link permanentemente
+- **Checkbox**: Selecione múltiplos links para exclusão em lote
+- **Expandir/Contrair grupos**: Clique no cabeçalho do grupo
+- **🗑️ Excluir Selecionados**: Remove os links marcados
 
 ### 3. Executar Coleta
 
 1. Configure os **filtros** desejados (prazo, valor)
-2. Selecione os **grupos** a coletar (checkbox)
+2. Selecione os **grupos** a coletar usando os checkboxes (GOV, FUNDA, LATAM)
 3. Clique em **"RODAR COLETA"**
 
-O sistema executará:
-1. **Fase 1**: Coleta tradicional (providers fixos)
-2. **Fase 2**: Coleta universal (links cadastrados via IA)
+O sistema processará apenas os links dos grupos selecionados usando IA.
+
+**Após a coleta:**
+- Os resultados aparecem em cards por link
+- Cards de erro podem ser fechados clicando no **✕**
+- Use **"Limpar Todos"** para fechar todos os cards de uma vez
 
 ### 4. Usar Filtros
 
@@ -61,20 +114,6 @@ Os filtros funcionam "de verdade" na coleta universal:
 - **Prazo mínimo**: A IA só retornará editais com deadline >= X dias no futuro
 - **Valor máximo**: A IA filtrará editais acima do valor especificado
 - **Regex por grupo**: Palavras-chave são passadas para a IA
-
-## 💰 Custos
-
-A coleta universal usa a API da Perplexity. Custos estimados:
-
-| Modelo | Custo por extração | Uso recomendado |
-|--------|-------------------|-----------------|
-| Sonar | ~R$ 0,002 | Coleta normal (padrão) |
-| Sonar Pro | ~R$ 0,02 | Páginas complexas |
-| Sonar Reasoning | ~R$ 0,01 | Análise mais profunda |
-
-**Exemplo prático:**
-- 50 links cadastrados × R$ 0,002 = R$ 0,10 por coleta completa
-- Executando 3x por dia × 30 dias = R$ 9,00/mês
 
 ## ⚠️ Limitações
 
@@ -138,8 +177,10 @@ Os links são salvos na aba `links_cadastrados` com as colunas:
 - Tente com um modelo mais potente (sonar-pro)
 
 ### "API key não configurada"
-- Configure a variável `PERPLEXITY_API_KEY` no `.env`
-- Ou adicione em `config.json`
+- Abra o arquivo `.env` na raiz do projeto
+- Adicione a linha: `PERPLEXITY_API_KEY="pplx-sua-chave"`
+- Reinicie o servidor
+- Obtenha sua chave em: https://www.perplexity.ai/settings/api
 
 ### Poucos itens encontrados
 - A IA é conservadora - prefere não retornar do que retornar errado

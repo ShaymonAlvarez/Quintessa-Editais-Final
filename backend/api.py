@@ -251,6 +251,7 @@ class UniversalCollectRequest(BaseModel):
     max_value: Optional[float] = None
     model_id: str = "sonar"
     link_uid: Optional[str] = None  # Se fornecido, coleta só esse link
+    groups: Optional[List[str]] = None  # Se fornecido, filtra por grupos selecionados
 
 
 #---------- ENDPOINTS DE CONFIG ----------
@@ -382,6 +383,22 @@ async def api_collect_universal(request: Request, req: UniversalCollectRequest):
         if not links:
             raise HTTPException(status_code=404, detail="Link não encontrado")
     
+    # Se groups fornecido, filtra por grupos selecionados
+    if req.groups:
+        links = [l for l in links if l.get("grupo") in req.groups]
+        if not links:
+            return {
+                "result": {
+                    "all_items": [],
+                    "stats_by_group": {},
+                    "errors": [],
+                    "processed": 0,
+                    "total": 0,
+                    "message": "Nenhum link cadastrado nos grupos selecionados."
+                },
+                "errors": get_errors(),
+            }
+    
     # Carrega regex por grupo da config
     cfg = get_app_config()
     regex_by_group = cfg.get("regex_by_group", {})
@@ -440,6 +457,37 @@ async def api_collect_universal(request: Request, req: UniversalCollectRequest):
         except Exception as e:
             push_error("api_collect_universal_save", e)
             result["save_error"] = str(e)
+    
+    # Calcula custo em USD e BRL
+    # Preços Perplexity (janeiro 2026):
+    # sonar: $1/milhão tokens (input e output)
+    # sonar-pro: $3/milhão input, $15/milhão output
+    input_tokens = result.get("total_input_tokens", 0)
+    output_tokens = result.get("total_output_tokens", 0)
+    
+    # Preços por modelo (USD por milhão de tokens)
+    model_prices = {
+        "sonar": {"input": 1.0, "output": 1.0},
+        "sonar-pro": {"input": 3.0, "output": 15.0},
+        "sonar-reasoning": {"input": 1.0, "output": 5.0},
+    }
+    
+    prices = model_prices.get(req.model_id, {"input": 1.0, "output": 1.0})
+    cost_usd = (input_tokens * prices["input"] / 1_000_000) + (output_tokens * prices["output"] / 1_000_000)
+    
+    # Cotação USD/BRL (pega da config ou usa padrão)
+    usd_brl = float(cfg.get("config", {}).get("USD_BRL", "5.5"))
+    cost_brl = cost_usd * usd_brl
+    
+    result["cost"] = {
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "total_tokens": input_tokens + output_tokens,
+        "cost_usd": round(cost_usd, 6),
+        "cost_brl": round(cost_brl, 4),
+        "usd_brl": usd_brl,
+        "model": req.model_id,
+    }
     
     return {
         "result": result,

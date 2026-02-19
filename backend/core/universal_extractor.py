@@ -150,15 +150,16 @@ def call_perplexity_extraction(
     model_id: str = "sonar",
     temperature: float = 0.1,
     max_tokens: int = 4000,
-) -> Tuple[List[Dict], Optional[str]]:
+) -> Tuple[List[Dict], Optional[str], Dict[str, int]]:
     """
     Chama a API da Perplexity para extração.
     
-    Retorna: (lista_de_editais, erro_ou_none)
+    Retorna: (lista_de_editais, erro_ou_none, token_usage)
+    token_usage = {"input_tokens": X, "output_tokens": Y}
     """
     api_key = get_perplexity_api_key()
     if not api_key:
-        return [], "API key da Perplexity não configurada"
+        return [], "API key da Perplexity não configurada", {"input_tokens": 0, "output_tokens": 0}
     
     url = "https://api.perplexity.ai/chat/completions"
     headers = {
@@ -176,13 +177,21 @@ def call_perplexity_extraction(
         ],
     }
     
+    token_usage = {"input_tokens": 0, "output_tokens": 0}
+    
     try:
         resp = requests.post(url, headers=headers, json=body, timeout=120)
         if resp.status_code >= 400:
-            return [], f"Erro API: {resp.status_code} - {resp.text[:500]}"
+            return [], f"Erro API: {resp.status_code} - {resp.text[:500]}", token_usage
         data = resp.json()
+        
+        # Extrai tokens da resposta (Perplexity retorna em "usage")
+        usage = data.get("usage", {})
+        token_usage["input_tokens"] = usage.get("prompt_tokens", 0)
+        token_usage["output_tokens"] = usage.get("completion_tokens", 0)
+        
     except Exception as e:
-        return [], f"Exceção na API: {e}"
+        return [], f"Exceção na API: {e}", token_usage
     
     # Extrai resposta
     try:
@@ -195,7 +204,7 @@ def call_perplexity_extraction(
         content = ""
     
     if not content:
-        return [], "Resposta vazia da API"
+        return [], "Resposta vazia da API", token_usage
     
     # Tenta parsear JSON da resposta
     try:
@@ -212,17 +221,17 @@ def call_perplexity_extraction(
         items = json.loads(content)
         if not isinstance(items, list):
             items = [items] if items else []
-        return items, None
+        return items, None, token_usage
     except json.JSONDecodeError as e:
         # Tenta extrair JSON de dentro do texto
         match = re.search(r'\[[\s\S]*\]', content)
         if match:
             try:
                 items = json.loads(match.group())
-                return items, None
+                return items, None, token_usage
             except:
                 pass
-        return [], f"Erro ao parsear JSON: {e}"
+        return [], f"Erro ao parsear JSON: {e}", token_usage
 
 
 def extract_from_url(
@@ -247,7 +256,7 @@ def extract_from_url(
         model_id: Modelo Perplexity a usar (sonar, sonar-pro, etc)
     
     Returns:
-        Dict com: items, count, error, url, grupo
+        Dict com: items, count, error, url, grupo, input_tokens, output_tokens
     """
     result = {
         "url": url,
@@ -255,7 +264,8 @@ def extract_from_url(
         "items": [],
         "count": 0,
         "error": None,
-        "tokens_used": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
     }
     
     # 1. Baixa conteúdo da página
@@ -282,10 +292,14 @@ def extract_from_url(
     )
     
     # 3. Chama Perplexity
-    items, error = call_perplexity_extraction(
+    items, error, token_usage = call_perplexity_extraction(
         prompt=prompt,
         model_id=model_id,
     )
+    
+    # Armazena tokens usados
+    result["input_tokens"] = token_usage.get("input_tokens", 0)
+    result["output_tokens"] = token_usage.get("output_tokens", 0)
     
     if error:
         result["error"] = error
@@ -342,7 +356,7 @@ def extract_from_links(
         callback: Função chamada após cada link (para progresso)
     
     Returns:
-        Dict com: all_items, stats_by_group, errors
+        Dict com: all_items, stats_by_group, errors, total_input_tokens, total_output_tokens
     """
     regex_by_group = regex_by_group or {}
     
@@ -352,6 +366,8 @@ def extract_from_links(
         "errors": [],
         "processed": 0,
         "total": len(links),
+        "total_input_tokens": 0,
+        "total_output_tokens": 0,
     }
     
     active_links = [l for l in links if l.get("ativo", "true") == "true"]
@@ -376,20 +392,28 @@ def extract_from_links(
                 model_id=model_id,
             )
             
+            # Acumula tokens
+            results["total_input_tokens"] += extracted.get("input_tokens", 0)
+            results["total_output_tokens"] += extracted.get("output_tokens", 0)
+            
             if extracted.get("error"):
                 results["errors"].append({
                     "url": url,
                     "grupo": grupo,
                     "error": extracted["error"],
+                    "input_tokens": extracted.get("input_tokens", 0),
+                    "output_tokens": extracted.get("output_tokens", 0),
                 })
             else:
                 results["all_items"].extend(extracted.get("items", []))
                 
                 # Estatísticas por grupo
                 if grupo not in results["stats_by_group"]:
-                    results["stats_by_group"][grupo] = {"total": 0, "links": 0}
+                    results["stats_by_group"][grupo] = {"total": 0, "links": 0, "input_tokens": 0, "output_tokens": 0}
                 results["stats_by_group"][grupo]["total"] += extracted.get("count", 0)
                 results["stats_by_group"][grupo]["links"] += 1
+                results["stats_by_group"][grupo]["input_tokens"] += extracted.get("input_tokens", 0)
+                results["stats_by_group"][grupo]["output_tokens"] += extracted.get("output_tokens", 0)
             
         except Exception as e:
             push_error("extract_from_links", e)

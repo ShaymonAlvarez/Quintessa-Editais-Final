@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>Busca de editais</title>
-    <link rel="stylesheet" href="/static/styles.css?v=coleta-universal-3">
+    <link rel="stylesheet" href="/static/styles.css?v=coleta-universal-4">
     <style>
       .tab-panel{display:none;}
       .tab-panel.active{display:block;}
@@ -67,10 +67,21 @@
               </div>
               
               <div class="groups-column">
-                <div class="groups-title">🤖 COLETA VIA IA</div>
-                <div class="groups-info">
-                  <p>A coleta processa automaticamente todos os <strong>links ativos</strong> cadastrados abaixo.</p>
-                  <p>Gerencie os links na seção abaixo.</p>
+                <div class="groups-title">GRUPOS A COLETAR</div>
+                <div id="groups-checkboxes" class="groups-list"></div>
+                <div class="model-info">
+                  <span class="model-label">🤖 Modelo: <strong>sonar</strong></span>
+                  <span class="model-cost">($1/M tokens)</span>
+                </div>
+                <div id="cost-tracker" class="cost-tracker hidden">
+                  <div class="cost-tracker-label">💰 Custo desta sessão:</div>
+                  <div class="cost-tracker-value">
+                    <span id="cost-brl">R$ 0,00</span>
+                    <span class="cost-usd">(<span id="cost-usd">$0.00</span>)</span>
+                  </div>
+                  <div class="cost-tokens">
+                    <span id="cost-tokens-count">0</span> tokens usados
+                  </div>
                 </div>
               </div>
               
@@ -78,54 +89,72 @@
                 <button id="btn-diag" class="pill-btn pill-diag">DIAGNÓSTICO</button>
                 <button id="btn-clear-all" class="pill-btn pill-danger">RESETAR PLANILHA</button>
                 <button id="btn-run-collect" class="pill-btn pill-success">RODAR COLETA</button>
-                
                 <button id="btn-refresh-items" class="pill-btn pill-refresh">RECARREGAR ITENS</button>
+                <button id="btn-open-links-modal" class="pill-btn pill-links">CADASTRAR LINKS</button>
               </div>
               
             </section>
             <input type="date" id="filter-date" class="visually-hidden-date" />
 
-            <!-- SEÇÃO DE LINKS CADASTRADOS (COLETA UNIVERSAL) -->
-            <section id="links-section" class="links-section">
-              <div class="links-header">
-                <h3>🔗 LINKS CADASTRADOS PARA COLETA</h3>
-                <button id="btn-toggle-links-form" class="pill-btn pill-muted">+ Adicionar Link</button>
-              </div>
-              
-              <div id="links-form" class="links-form hidden">
-                <div class="links-form-row">
-                  <div class="form-group">
-                    <label for="new-link-url">URL do site:</label>
-                    <input type="text" id="new-link-url" class="form-control" placeholder="https://..." />
+            <!-- MODAL DE LINKS CADASTRADOS -->
+            <div id="links-modal" class="modal-fullscreen hidden">
+              <div class="modal-fullscreen-content">
+                <div class="modal-fullscreen-header">
+                  <h2>🔗 Gerenciar Links Cadastrados</h2>
+                  <button id="btn-close-links-modal" class="modal-close-btn">&times;</button>
+                </div>
+                
+                <div class="modal-fullscreen-toolbar">
+                  <div class="links-search-box">
+                    <input type="text" id="links-search" class="form-control" placeholder="🔍 Pesquisar link ou nome..." />
                   </div>
-                  <div class="form-group">
-                    <label for="new-link-grupo">Grupo:</label>
-                    <select id="new-link-grupo" class="form-control">
-                      <!-- Preenchido via JS -->
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label for="new-link-nome">Nome/Apelido (opcional):</label>
-                    <input type="text" id="new-link-nome" class="form-control" placeholder="Ex: FINEP Inovação" />
-                  </div>
-                  <div class="form-group form-actions">
-                    <button id="btn-save-link" class="pill-btn pill-success">Salvar Link</button>
-                    <button id="btn-cancel-link" class="pill-btn pill-muted">Cancelar</button>
+                  <div class="links-toolbar-actions">
+                    <button id="btn-add-link" class="pill-btn pill-success">+ Adicionar Link</button>
+                    <button id="btn-delete-selected" class="pill-btn pill-danger" disabled>🗑️ Excluir Selecionados (0)</button>
+                    <button id="btn-expand-all" class="pill-btn pill-muted">Expandir Todos</button>
+                    <button id="btn-collapse-all" class="pill-btn pill-muted">Contrair Todos</button>
                   </div>
                 </div>
+                
+                <!-- Formulário de adicionar link (inicialmente oculto) -->
+                <div id="links-add-form" class="links-add-form hidden">
+                  <div class="links-form-grid">
+                    <div class="form-group">
+                      <label for="new-link-url">URL do site:</label>
+                      <input type="text" id="new-link-url" class="form-control" placeholder="https://..." />
+                    </div>
+                    <div class="form-group">
+                      <label for="new-link-grupo">Grupo:</label>
+                      <select id="new-link-grupo" class="form-control">
+                        <option value="Governo/Multilaterais">Governo/Multilaterais</option>
+                        <option value="Fundações e Prêmios">Fundações e Prêmios</option>
+                        <option value="América Latina/Brasil">América Latina/Brasil</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label for="new-link-nome">Nome/Apelido (opcional):</label>
+                      <input type="text" id="new-link-nome" class="form-control" placeholder="Ex: FINEP Inovação" />
+                    </div>
+                    <div class="form-group form-actions">
+                      <button id="btn-save-link" class="pill-btn pill-success">Salvar</button>
+                      <button id="btn-cancel-link" class="pill-btn pill-muted">Cancelar</button>
+                    </div>
+                  </div>
+                  <div id="link-exists-warning" class="link-warning hidden">
+                    ⚠️ Este link já está cadastrado!
+                  </div>
+                </div>
+                
+                <!-- Lista de links agrupados -->
+                <div id="links-grouped-list" class="links-grouped-list">
+                  <em>Carregando links...</em>
+                </div>
+                
+                <div class="modal-fullscreen-footer">
+                  <small>💡 Selecione os grupos na tela principal para filtrar quais links serão usados na coleta via IA.</small>
+                </div>
               </div>
-              
-              <div id="links-list" class="links-list">
-                <em>Carregando links cadastrados...</em>
-              </div>
-              
-              <div class="links-info">
-                <small>
-                  💡 Cadastre links de páginas que listam editais. 
-                  Ao clicar em "RODAR COLETA", o sistema usará IA para extrair automaticamente os editais de cada link.
-                </small>
-              </div>
-            </section>
+            </div>
 
             <div id="collect-progress" class="progress-overlay hidden">
               <div class="progress-box">
@@ -197,6 +226,6 @@
       </section>
     </main>
 
-    <script src="/static/app.js?v=coleta-universal-3"></script>
+    <script src="/static/app.js?v=coleta-universal-4"></script>
   </body>
 </html>

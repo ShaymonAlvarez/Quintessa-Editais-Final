@@ -11,7 +11,14 @@ const state = {
   usdBrl: 5.2,
   linkTokens: 0, // tokens estimados do conteúdo do link do edital
   filterDate: null,   // yyyy-mm-dd (string) ou null
-  valueMax: null,     // número em BRL ou null  
+  valueMax: null,     // número em BRL ou null
+  // Custo da sessão
+  sessionCost: {
+    inputTokens: 0,
+    outputTokens: 0,
+    costUsd: 0,
+    costBrl: 0,
+  },
 };
 
 // NOVO: Busca a cotação atual do dólar (USD-BRL)
@@ -46,6 +53,62 @@ function updateDollarUI(rate) {
     // Formata para R$ 5.23 (exemplo)
     badge.textContent = rate.toFixed(2);
   }
+}
+
+// NOVO: Atualiza o contador de custo na UI
+function updateCostTracker(costData) {
+  if (!costData) return;
+  
+  // Acumula tokens e custos na sessão
+  state.sessionCost.inputTokens += costData.input_tokens || 0;
+  state.sessionCost.outputTokens += costData.output_tokens || 0;
+  state.sessionCost.costUsd += costData.cost_usd || 0;
+  state.sessionCost.costBrl += costData.cost_brl || 0;
+  
+  // Atualiza elementos da UI
+  const tracker = document.getElementById("cost-tracker");
+  const costBrl = document.getElementById("cost-brl");
+  const costUsd = document.getElementById("cost-usd");
+  const tokensCount = document.getElementById("cost-tokens-count");
+  
+  if (tracker) {
+    tracker.classList.remove("hidden");
+    tracker.classList.add("updating");
+    setTimeout(() => tracker.classList.remove("updating"), 300);
+  }
+  
+  if (costBrl) {
+    costBrl.textContent = `R$ ${state.sessionCost.costBrl.toFixed(4).replace('.', ',')}`;
+  }
+  
+  if (costUsd) {
+    costUsd.textContent = `$${state.sessionCost.costUsd.toFixed(6)}`;
+  }
+  
+  if (tokensCount) {
+    const total = state.sessionCost.inputTokens + state.sessionCost.outputTokens;
+    tokensCount.textContent = total.toLocaleString('pt-BR');
+  }
+}
+
+// Mostra custo parcial (durante a coleta, antes de terminar)
+function showPartialCost(inputTokens, outputTokens, modelId = "sonar") {
+  const modelPrices = {
+    "sonar": { input: 1.0, output: 1.0 },
+    "sonar-pro": { input: 3.0, output: 15.0 },
+    "sonar-reasoning": { input: 1.0, output: 5.0 },
+  };
+  
+  const prices = modelPrices[modelId] || modelPrices["sonar"];
+  const costUsd = (inputTokens * prices.input / 1_000_000) + (outputTokens * prices.output / 1_000_000);
+  const costBrl = costUsd * state.usdBrl;
+  
+  updateCostTracker({
+    input_tokens: inputTokens,
+    output_tokens: outputTokens,
+    cost_usd: costUsd,
+    cost_brl: costBrl,
+  });
 }
 
 // ---------- Helpers One-Click (presets salvos em localStorage) ----------
@@ -283,11 +346,30 @@ function renderConfigUI() {
 }
 
 // Renderiza lista de checkboxes de grupos
-// NOTA: Com coleta universal, esta função não é mais necessária
-// Mantida vazia para compatibilidade
 function renderGroupsCheckboxes() {
-  // A coleta universal processa todos os links ativos automaticamente
-  // Não há mais necessidade de selecionar grupos
+  const container = document.getElementById("groups-checkboxes");
+  if (!container) return;
+  container.innerHTML = "";
+  
+  // Grupos oficiais
+  const OFFICIAL_GROUPS = [
+    "Governo/Multilaterais",
+    "Fundações e Prêmios",
+    "América Latina/Brasil"
+  ];
+  
+  for (const g of OFFICIAL_GROUPS) {
+    const display = g.replace(/\s*\/\s*/g, '/');
+    const id = `grp-${g.replace(/[^a-z0-9]/gi, "_")}`;
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = `
+      <label>
+        <input type="checkbox" id="${id}" data-group="${g}" checked />
+        ${display}
+      </label>
+    `;
+    container.appendChild(wrapper);
+  }
 }
 
 // ---------- Renderização de grupos / itens ----------
@@ -717,8 +799,8 @@ async function handleSaveMinDays() {
 }
 
 // Coleta: botão principal (agora com progresso, cancelamento e execução por grupo)
-// COLETA UNIVERSAL - Usa SOMENTE IA (Perplexity) para extrair editais
-// Os providers tradicionais foram descontinuados
+// COLETA UNIVERSAL - Usa IA (Perplexity) para extrair editais
+// Filtra pelos grupos selecionados nos checkboxes
 async function handleRunCollect() {
   const btn = document.getElementById("btn-run-collect");
   const resultDiv = document.getElementById("collect-result");
@@ -727,25 +809,54 @@ async function handleRunCollect() {
   const progressLabel = document.getElementById("collect-progress-label");
   if (!btn || !resultDiv) return;
 
-  // Verifica se há links cadastrados
-  if (!linksState.links || linksState.links.length === 0) {
+  // Coleta grupos selecionados
+  const selectedGroups = [];
+  document
+    .querySelectorAll("#groups-checkboxes input[type=checkbox]")
+    .forEach((chk) => {
+      if (chk.checked) {
+        selectedGroups.push(chk.dataset.group);
+      }
+    });
+
+  if (selectedGroups.length === 0) {
     resultDiv.innerHTML = `
-      <div style="padding:20px;background:rgba(239,71,111,0.2);border-radius:8px;border:1px solid rgba(239,71,111,0.4);">
-        <strong>⚠️ Nenhum link cadastrado!</strong><br/><br/>
-        Cadastre links na seção acima para usar a coleta via IA.<br/>
-        Clique em "+ Adicionar Link" para começar.
+      <div style="padding:20px;background:rgba(255,209,102,0.2);border-radius:8px;border:1px solid rgba(255,209,102,0.4);">
+        <strong>⚠️ Nenhum grupo selecionado!</strong><br/><br/>
+        Selecione ao menos um grupo para executar a coleta.
       </div>
     `;
     return;
   }
 
-  const activeLinks = linksState.links.filter(l => l.ativo === "true");
+  // Verifica se há links cadastrados
+  if (!linksState.links || linksState.links.length === 0) {
+    resultDiv.innerHTML = `
+      <div style="padding:20px;background:rgba(239,71,111,0.2);border-radius:8px;border:1px solid rgba(239,71,111,0.4);">
+        <strong>⚠️ Nenhum link cadastrado!</strong><br/><br/>
+        Clique em "CADASTRAR LINKS" para adicionar links.
+      </div>
+    `;
+    return;
+  }
+
+  // Filtra links ativos E que pertencem aos grupos selecionados
+  const activeLinks = linksState.links.filter(l => {
+    if (l.ativo !== "true") return false;
+    // Normaliza grupo do link para comparação
+    const linkGroup = (l.grupo || "").replace(/\s*\/\s*/g, "/").trim();
+    return selectedGroups.some(sg => {
+      const selGroup = sg.replace(/\s*\/\s*/g, "/").trim();
+      return linkGroup === selGroup;
+    });
+  });
   
   if (activeLinks.length === 0) {
     resultDiv.innerHTML = `
       <div style="padding:20px;background:rgba(255,209,102,0.2);border-radius:8px;border:1px solid rgba(255,209,102,0.4);">
-        <strong>⚠️ Todos os links estão desativados!</strong><br/><br/>
-        Ative pelo menos um link para executar a coleta.
+        <strong>⚠️ Nenhum link ativo nos grupos selecionados!</strong><br/><br/>
+        Grupos selecionados: ${selectedGroups.join(", ")}<br/>
+        Clique em "CADASTRAR LINKS" para gerenciar seus links.
       </div>
     `;
     return;
@@ -760,7 +871,7 @@ async function handleRunCollect() {
     progressOverlay.classList.remove("hidden");
     progressBar.max = 100;
     progressBar.value = 0;
-    progressLabel.textContent = `Iniciando coleta de ${activeLinks.length} link(s)…`;
+    progressLabel.textContent = `Iniciando coleta de ${activeLinks.length} link(s) em ${selectedGroups.length} grupo(s)…`;
   }
 
   let totalExtracted = 0;
@@ -781,6 +892,7 @@ async function handleRunCollect() {
       min_days: state.minDays,
       max_value: maxValue,
       model_id: "sonar", // Modelo mais barato e rápido
+      groups: selectedGroups, // Filtra pelos grupos selecionados
     });
 
     if (progressBar) {
@@ -790,14 +902,23 @@ async function handleRunCollect() {
     const res = data.result || {};
     renderErrors(data.errors);
 
+    // Atualiza contador de custo
+    if (res.cost) {
+      updateCostTracker(res.cost);
+    }
+
     totalExtracted = res.items_saved || res.all_items?.length || 0;
     
     // Estatísticas por grupo
+    const successLines = [];
+    const errorLines = [];
+    
     if (res.stats_by_group) {
       for (const [grupo, stats] of Object.entries(res.stats_by_group)) {
-        summaryLines.push(
-          `<strong>${grupo}</strong>: ${stats.total} editais de ${stats.links} link(s)`
-        );
+        successLines.push({
+          type: 'success',
+          text: `<strong>${grupo}</strong>: ${stats.total} editais de ${stats.links} link(s)`
+        });
       }
     }
     
@@ -805,9 +926,10 @@ async function handleRunCollect() {
     if (res.errors && res.errors.length > 0) {
       for (const err of res.errors) {
         const shortUrl = err.url.length > 50 ? err.url.substring(0, 50) + "…" : err.url;
-        summaryLines.push(
-          `<span style="color:#EF476F;">❌ ${shortUrl}: ${err.error}</span>`
-        );
+        errorLines.push({
+          type: 'error',
+          text: `❌ ${shortUrl}: ${err.error}`
+        });
       }
     }
 
@@ -824,19 +946,42 @@ async function handleRunCollect() {
       ? "⚠️ Coleta cancelada."
       : "✅ Coleta concluída!";
 
+    // Monta custo formatado
+    const costInfo = res.cost ? `
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.1);">
+        💰 <strong>Custo desta coleta:</strong> R$ ${res.cost.cost_brl.toFixed(4).replace('.', ',')} 
+        <span style="color:#888;">(${res.cost.total_tokens.toLocaleString('pt-BR')} tokens)</span>
+      </div>
+    ` : '';
+
     let resultHtml = `
       <div style="padding:20px;background:rgba(6,214,160,0.15);border-radius:8px;border:1px solid rgba(6,214,160,0.3);margin-bottom:16px;">
         <strong style="font-size:1.1rem;">${headerLine}</strong><br/><br/>
         📊 <strong>Editais extraídos:</strong> ${totalExtracted}<br/>
         🔗 <strong>Links processados:</strong> ${res.processed || activeLinks.length} de ${res.total || activeLinks.length}
+        ${costInfo}
       </div>
     `;
     
-    if (summaryLines.length > 0) {
+    // Renderiza cards dismissíveis
+    const allCards = [...successLines, ...errorLines];
+    if (allCards.length > 0) {
       resultHtml += `
-        <div style="padding:16px;background:rgba(255,255,255,0.05);border-radius:8px;">
-          <strong>📋 Detalhes por grupo:</strong><br/><br/>
-          ${summaryLines.join("<br/>")}
+        <div id="collect-details-container" style="padding:16px;background:rgba(255,255,255,0.05);border-radius:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <strong>📋 Detalhes por grupo:</strong>
+            <button onclick="clearAllCollectCards()" style="background:rgba(239,71,111,0.2);border:1px solid rgba(239,71,111,0.4);color:#EF476F;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:0.85rem;">
+              ✕ Limpar Todos
+            </button>
+          </div>
+          <div id="collect-cards-list">
+            ${allCards.map((card, idx) => `
+              <div class="collect-card ${card.type}" id="collect-card-${idx}" style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;margin-bottom:6px;border-radius:4px;${card.type === 'error' ? 'background:rgba(239,71,111,0.1);border:1px solid rgba(239,71,111,0.3);' : 'background:rgba(6,214,160,0.1);border:1px solid rgba(6,214,160,0.3);'}">
+                <span style="${card.type === 'error' ? 'color:#EF476F;' : ''}">${card.text}</span>
+                <button onclick="dismissCollectCard(${idx})" style="background:transparent;border:none;color:${card.type === 'error' ? '#EF476F' : '#06D6A0'};cursor:pointer;font-size:1.2rem;padding:0 4px;opacity:0.7;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">✕</button>
+              </div>
+            `).join('')}
+          </div>
         </div>
       `;
     }
@@ -857,6 +1002,34 @@ async function handleRunCollect() {
     if (progressOverlay) {
       progressOverlay.classList.add("hidden");
     }
+  }
+}
+
+// Funções para dismiss dos cards de resultado
+function dismissCollectCard(idx) {
+  const card = document.getElementById(`collect-card-${idx}`);
+  if (card) {
+    card.style.transition = 'opacity 0.3s, transform 0.3s';
+    card.style.opacity = '0';
+    card.style.transform = 'translateX(20px)';
+    setTimeout(() => {
+      card.remove();
+      // Se não há mais cards, esconde o container
+      const list = document.getElementById('collect-cards-list');
+      if (list && list.children.length === 0) {
+        const container = document.getElementById('collect-details-container');
+        if (container) container.remove();
+      }
+    }, 300);
+  }
+}
+
+function clearAllCollectCards() {
+  const container = document.getElementById('collect-details-container');
+  if (container) {
+    container.style.transition = 'opacity 0.3s';
+    container.style.opacity = '0';
+    setTimeout(() => container.remove(), 300);
   }
 }
 
@@ -1609,89 +1782,312 @@ async function toggleDiagSection() {
   sec.classList.toggle("hidden");
 }
 
-// ============= GERENCIAMENTO DE LINKS CADASTRADOS (COLETA UNIVERSAL) =============
+// ============= GERENCIAMENTO DE LINKS CADASTRADOS (MODAL) =============
 
 // Estado dos links
 const linksState = {
   links: [],
   loading: false,
+  selectedUids: new Set(),
+  expandedGroups: new Set(["Governo/Multilaterais", "Fundações e Prêmios", "América Latina/Brasil"]),
+  searchTerm: "",
 };
 
 // Carrega links do backend
 async function loadLinks() {
-  const listDiv = document.getElementById("links-list");
-  if (!listDiv) return;
-  
   linksState.loading = true;
-  listDiv.innerHTML = "<em>Carregando links cadastrados...</em>";
   
   try {
     const data = await apiGet("/api/links");
     linksState.links = data.links || [];
-    renderLinks();
+    renderLinksModal();
   } catch (e) {
-    listDiv.innerHTML = `<em style="color:#EF476F;">Erro ao carregar links: ${e}</em>`;
+    console.error("Erro ao carregar links:", e);
   } finally {
     linksState.loading = false;
   }
 }
 
-// Renderiza a lista de links
-function renderLinks() {
-  const listDiv = document.getElementById("links-list");
-  if (!listDiv) return;
+// Abre o modal de links
+function openLinksModal() {
+  const modal = document.getElementById("links-modal");
+  if (modal) {
+    modal.classList.remove("hidden");
+    loadLinks();
+  }
+}
+
+// Fecha o modal de links
+function closeLinksModal() {
+  const modal = document.getElementById("links-modal");
+  if (modal) {
+    modal.classList.add("hidden");
+    // Limpa seleção
+    linksState.selectedUids.clear();
+    updateDeleteSelectedButton();
+  }
+}
+
+// Renderiza links agrupados no modal
+function renderLinksModal() {
+  const container = document.getElementById("links-grouped-list");
+  if (!container) return;
   
   if (linksState.links.length === 0) {
-    listDiv.innerHTML = `<em style="color:rgba(255,255,255,0.6);">
-      Nenhum link cadastrado ainda. Clique em "+ Adicionar Link" para começar.
-    </em>`;
+    container.innerHTML = `
+      <div class="links-empty-state">
+        <h3>Nenhum link cadastrado</h3>
+        <p>Clique em "+ Adicionar Link" para começar.</p>
+      </div>
+    `;
     return;
   }
   
-  listDiv.innerHTML = linksState.links.map(link => {
-    const isActive = link.ativo === "true";
-    const statusClass = isActive ? "active" : "inactive";
-    const toggleLabel = isActive ? "Desativar" : "Ativar";
+  // Filtra por pesquisa
+  const searchLower = linksState.searchTerm.toLowerCase();
+  const filteredLinks = linksState.links.filter(link => {
+    if (!searchLower) return true;
+    const name = (link.nome || "").toLowerCase();
+    const url = (link.url || "").toLowerCase();
+    return name.includes(searchLower) || url.includes(searchLower);
+  });
+  
+  // Agrupa por grupo
+  const groups = {};
+  for (const link of filteredLinks) {
+    const g = link.grupo || "Sem grupo";
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(link);
+  }
+  
+  // Ordem dos grupos
+  const groupOrder = ["Governo/Multilaterais", "Fundações e Prêmios", "América Latina/Brasil"];
+  const sortedGroups = Object.keys(groups).sort((a, b) => {
+    const ia = groupOrder.indexOf(a);
+    const ib = groupOrder.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+  
+  let html = "";
+  for (const g of sortedGroups) {
+    const links = groups[g];
+    const isExpanded = linksState.expandedGroups.has(g);
+    const allSelected = links.every(l => linksState.selectedUids.has(l.uid));
     
-    // Formata nome do link
-    const displayName = link.nome || extractDomain(link.url);
-    
-    // Stats da última execução
-    let statsHtml = "";
-    if (link.last_run) {
-      const lastDate = new Date(link.last_run);
-      const formattedDate = lastDate.toLocaleDateString("pt-BR");
-      const statusIcon = link.last_status === "ok" ? "✅" : "❌";
-      statsHtml = `${statusIcon} ${formattedDate} (${link.last_items || 0} itens)`;
-    } else {
-      statsHtml = "Nunca executado";
-    }
-    
-    return `
-      <div class="link-card" data-uid="${link.uid}">
-        <div class="link-status ${statusClass}" title="${isActive ? 'Ativo' : 'Inativo'}"></div>
-        <div class="link-info">
-          <span class="link-name">${escapeHtml(displayName)}</span>
-          <span class="link-url" title="${escapeHtml(link.url)}">${escapeHtml(link.url)}</span>
+    html += `
+      <div class="links-group-card" data-group="${escapeHtml(g)}">
+        <div class="links-group-header ${isExpanded ? '' : 'collapsed'}" data-group="${escapeHtml(g)}">
+          <div class="links-group-title">
+            <span class="links-group-toggle">▾</span>
+            <span>${escapeHtml(g)}</span>
+            <span class="links-group-count">${links.length}</span>
+          </div>
+          <div class="links-group-actions">
+            <label class="links-group-select-all">
+              <input type="checkbox" class="select-all-group" data-group="${escapeHtml(g)}" ${allSelected ? 'checked' : ''} />
+              Selecionar todos
+            </label>
+          </div>
         </div>
-        <span class="link-grupo">${escapeHtml(link.grupo)}</span>
-        <span class="link-stats">${statsHtml}</span>
-        <div class="link-actions">
-          <button class="btn-toggle-link" data-uid="${link.uid}" data-active="${link.ativo}">${toggleLabel}</button>
-          <button class="btn-delete-link" data-uid="${link.uid}">🗑️</button>
+        <div class="links-group-body ${isExpanded ? '' : 'collapsed'}" data-group="${escapeHtml(g)}">
+          ${links.map(link => renderLinkItem(link)).join("")}
         </div>
       </div>
     `;
-  }).join("");
+  }
   
-  // Adiciona event listeners
-  listDiv.querySelectorAll(".btn-toggle-link").forEach(btn => {
-    btn.addEventListener("click", () => toggleLinkActive(btn.dataset.uid, btn.dataset.active));
+  if (!html) {
+    html = `
+      <div class="links-empty-state">
+        <h3>Nenhum resultado encontrado</h3>
+        <p>Tente uma pesquisa diferente.</p>
+      </div>
+    `;
+  }
+  
+  container.innerHTML = html;
+  
+  // Event listeners
+  setupLinksEventListeners(container);
+}
+
+// Renderiza um item de link
+function renderLinkItem(link) {
+  const isActive = link.ativo === "true";
+  const isSelected = linksState.selectedUids.has(link.uid);
+  const displayName = link.nome || extractDomain(link.url);
+  
+  return `
+    <div class="link-item ${isSelected ? 'selected' : ''}" data-uid="${link.uid}">
+      <input type="checkbox" class="link-item-checkbox" data-uid="${link.uid}" ${isSelected ? 'checked' : ''} />
+      <div class="link-item-info">
+        <div class="link-item-name">${escapeHtml(displayName)}</div>
+        <div class="link-item-url">
+          <a href="${escapeHtml(link.url)}" target="_blank" rel="noopener">${escapeHtml(link.url)}</a>
+        </div>
+      </div>
+      <span class="link-item-status ${isActive ? 'active' : 'inactive'}">${isActive ? 'Ativo' : 'Inativo'}</span>
+      <div class="link-item-actions">
+        <button class="btn-toggle-active" data-uid="${link.uid}">${isActive ? 'Desativar' : 'Ativar'}</button>
+        <button class="btn-delete-link" data-uid="${link.uid}">🗑️</button>
+      </div>
+    </div>
+  `;
+}
+
+// Configura event listeners do modal
+function setupLinksEventListeners(container) {
+  // Toggle de grupo (expandir/contrair)
+  container.querySelectorAll(".links-group-header").forEach(header => {
+    header.addEventListener("click", (e) => {
+      // Não fazer toggle se clicou no checkbox
+      if (e.target.type === "checkbox") return;
+      
+      const group = header.dataset.group;
+      const body = container.querySelector(`.links-group-body[data-group="${CSS.escape(group)}"]`);
+      
+      if (linksState.expandedGroups.has(group)) {
+        linksState.expandedGroups.delete(group);
+        header.classList.add("collapsed");
+        body?.classList.add("collapsed");
+      } else {
+        linksState.expandedGroups.add(group);
+        header.classList.remove("collapsed");
+        body?.classList.remove("collapsed");
+      }
+    });
   });
   
-  listDiv.querySelectorAll(".btn-delete-link").forEach(btn => {
-    btn.addEventListener("click", () => deleteLinkById(btn.dataset.uid));
+  // Checkbox individual
+  container.querySelectorAll(".link-item-checkbox").forEach(chk => {
+    chk.addEventListener("change", (e) => {
+      e.stopPropagation();
+      const uid = chk.dataset.uid;
+      if (chk.checked) {
+        linksState.selectedUids.add(uid);
+      } else {
+        linksState.selectedUids.delete(uid);
+      }
+      renderLinksModal();
+      updateDeleteSelectedButton();
+    });
   });
+  
+  // Select all do grupo
+  container.querySelectorAll(".select-all-group").forEach(chk => {
+    chk.addEventListener("change", (e) => {
+      e.stopPropagation();
+      const group = chk.dataset.group;
+      const groupLinks = linksState.links.filter(l => l.grupo === group);
+      
+      if (chk.checked) {
+        groupLinks.forEach(l => linksState.selectedUids.add(l.uid));
+      } else {
+        groupLinks.forEach(l => linksState.selectedUids.delete(l.uid));
+      }
+      renderLinksModal();
+      updateDeleteSelectedButton();
+    });
+  });
+  
+  // Toggle ativo/inativo
+  container.querySelectorAll(".btn-toggle-active").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const uid = btn.dataset.uid;
+      const link = linksState.links.find(l => l.uid === uid);
+      if (link) {
+        toggleLinkActive(uid, link.ativo);
+      }
+    });
+  });
+  
+  // Deletar individual
+  container.querySelectorAll(".btn-delete-link").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteLinkById(btn.dataset.uid);
+    });
+  });
+}
+
+// Atualiza botão de excluir selecionados
+function updateDeleteSelectedButton() {
+  const btn = document.getElementById("btn-delete-selected");
+  if (!btn) return;
+  
+  const count = linksState.selectedUids.size;
+  btn.textContent = `🗑️ Excluir Selecionados (${count})`;
+  btn.disabled = count === 0;
+}
+
+// Excluir links selecionados
+async function deleteSelectedLinks() {
+  const count = linksState.selectedUids.size;
+  if (count === 0) return;
+  
+  if (!confirm(`Tem certeza que deseja excluir ${count} link(s) selecionado(s)?`)) {
+    return;
+  }
+  
+  const uids = Array.from(linksState.selectedUids);
+  let deleted = 0;
+  
+  for (const uid of uids) {
+    try {
+      await fetch(`/api/links/${uid}`, { method: "DELETE" });
+      linksState.links = linksState.links.filter(l => l.uid !== uid);
+      deleted++;
+    } catch (e) {
+      console.error(`Erro ao deletar link ${uid}:`, e);
+    }
+  }
+  
+  linksState.selectedUids.clear();
+  renderLinksModal();
+  updateDeleteSelectedButton();
+  alert(`${deleted} link(s) excluído(s) com sucesso.`);
+}
+
+// Expande todos os grupos
+function expandAllGroups() {
+  linksState.expandedGroups = new Set(["Governo/Multilaterais", "Fundações e Prêmios", "América Latina/Brasil"]);
+  renderLinksModal();
+}
+
+// Contrai todos os grupos
+function collapseAllGroups() {
+  linksState.expandedGroups.clear();
+  renderLinksModal();
+}
+
+// Filtra links por pesquisa
+function handleLinksSearch(term) {
+  linksState.searchTerm = term;
+  renderLinksModal();
+}
+
+// Verifica se URL já existe
+function checkLinkExists(url) {
+  const normalized = url.toLowerCase().replace(/\/+$/, "");
+  return linksState.links.some(l => {
+    const linkUrl = (l.url || "").toLowerCase().replace(/\/+$/, "");
+    return linkUrl === normalized;
+  });
+}
+
+// Mostra/oculta formulário de adicionar
+function toggleAddLinkForm(show) {
+  const form = document.getElementById("links-add-form");
+  if (form) {
+    form.classList.toggle("hidden", !show);
+    if (show) {
+      document.getElementById("new-link-url")?.focus();
+    }
+  }
 }
 
 // Extrai domínio de uma URL
@@ -1716,10 +2112,14 @@ async function addNewLink() {
   const urlInput = document.getElementById("new-link-url");
   const grupoSelect = document.getElementById("new-link-grupo");
   const nomeInput = document.getElementById("new-link-nome");
+  const warningDiv = document.getElementById("link-exists-warning");
   
   const url = (urlInput?.value || "").trim();
   const grupo = grupoSelect?.value || "";
   const nome = (nomeInput?.value || "").trim();
+  
+  // Oculta warning
+  if (warningDiv) warningDiv.classList.add("hidden");
   
   if (!url) {
     alert("Por favor, informe a URL do site.");
@@ -1733,6 +2133,12 @@ async function addNewLink() {
     return;
   }
   
+  // Verifica se já existe
+  if (checkLinkExists(url)) {
+    if (warningDiv) warningDiv.classList.remove("hidden");
+    return;
+  }
+  
   if (!grupo) {
     alert("Por favor, selecione um grupo.");
     grupoSelect?.focus();
@@ -1743,17 +2149,12 @@ async function addNewLink() {
     const data = await apiPost("/api/links", { url, grupo, nome });
     if (data.link) {
       linksState.links.push(data.link);
-      renderLinks();
+      renderLinksModal();
       
       // Limpa formulário
       urlInput.value = "";
       nomeInput.value = "";
-      
-      // Fecha formulário
-      const formDiv = document.getElementById("links-form");
-      if (formDiv) formDiv.classList.add("hidden");
-      
-      alert("Link adicionado com sucesso!");
+      toggleAddLinkForm(false);
     }
   } catch (e) {
     alert("Erro ao adicionar link: " + e);
@@ -1775,7 +2176,7 @@ async function toggleLinkActive(uid, currentActive) {
     const link = linksState.links.find(l => l.uid === uid);
     if (link) {
       link.ativo = newActive;
-      renderLinks();
+      renderLinksModal();
     }
   } catch (e) {
     alert("Erro ao atualizar link: " + e);
@@ -1793,44 +2194,40 @@ async function deleteLinkById(uid) {
     
     // Remove do estado local
     linksState.links = linksState.links.filter(l => l.uid !== uid);
-    renderLinks();
+    linksState.selectedUids.delete(uid);
+    renderLinksModal();
+    updateDeleteSelectedButton();
   } catch (e) {
     alert("Erro ao remover link: " + e);
   }
 }
 
-// Popula o select de grupos no formulário
-function populateLinksGroupSelect() {
-  const select = document.getElementById("new-link-grupo");
-  if (!select) return;
-  
-  select.innerHTML = '<option value="">Selecione um grupo...</option>';
-  
-  for (const g of state.availableGroups) {
-    // Ignora filantropia
-    if (/filantrop/i.test(g)) continue;
-    
-    const opt = document.createElement("option");
-    opt.value = g;
-    opt.textContent = g.replace(/\s*\/\s*/g, '/');
-    select.appendChild(opt);
+// Inicializa o modal de links
+function initLinksModal() {
+  // Botão abrir modal
+  const btnOpen = document.getElementById("btn-open-links-modal");
+  if (btnOpen) {
+    btnOpen.addEventListener("click", openLinksModal);
   }
-}
-
-// Inicializa a seção de links quando o DOM carrega
-document.addEventListener("DOMContentLoaded", () => {
-  // Toggle do formulário de adicionar link
-  const btnToggle = document.getElementById("btn-toggle-links-form");
-  const formDiv = document.getElementById("links-form");
   
-  if (btnToggle && formDiv) {
-    btnToggle.addEventListener("click", () => {
-      formDiv.classList.toggle("hidden");
-      if (!formDiv.classList.contains("hidden")) {
-        populateLinksGroupSelect();
-        document.getElementById("new-link-url")?.focus();
-      }
+  // Botão fechar modal
+  const btnClose = document.getElementById("btn-close-links-modal");
+  if (btnClose) {
+    btnClose.addEventListener("click", closeLinksModal);
+  }
+  
+  // Fechar ao clicar fora
+  const modal = document.getElementById("links-modal");
+  if (modal) {
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeLinksModal();
     });
+  }
+  
+  // Botão adicionar link
+  const btnAdd = document.getElementById("btn-add-link");
+  if (btnAdd) {
+    btnAdd.addEventListener("click", () => toggleAddLinkForm(true));
   }
   
   // Botão salvar link
@@ -1841,15 +2238,54 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Botão cancelar
   const btnCancel = document.getElementById("btn-cancel-link");
-  if (btnCancel && formDiv) {
-    btnCancel.addEventListener("click", () => {
-      formDiv.classList.add("hidden");
+  if (btnCancel) {
+    btnCancel.addEventListener("click", () => toggleAddLinkForm(false));
+  }
+  
+  // Botão excluir selecionados
+  const btnDeleteSelected = document.getElementById("btn-delete-selected");
+  if (btnDeleteSelected) {
+    btnDeleteSelected.addEventListener("click", deleteSelectedLinks);
+  }
+  
+  // Botão expandir todos
+  const btnExpandAll = document.getElementById("btn-expand-all");
+  if (btnExpandAll) {
+    btnExpandAll.addEventListener("click", expandAllGroups);
+  }
+  
+  // Botão contrair todos
+  const btnCollapseAll = document.getElementById("btn-collapse-all");
+  if (btnCollapseAll) {
+    btnCollapseAll.addEventListener("click", collapseAllGroups);
+  }
+  
+  // Pesquisa
+  const searchInput = document.getElementById("links-search");
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+      handleLinksSearch(e.target.value);
     });
   }
   
-  // Carrega links iniciais (após um pequeno delay para garantir que config carregou)
-  setTimeout(() => {
-    loadLinks();
-    populateLinksGroupSelect();
-  }, 500);
+  // Verifica URL ao digitar
+  const urlInput = document.getElementById("new-link-url");
+  if (urlInput) {
+    urlInput.addEventListener("input", () => {
+      const warningDiv = document.getElementById("link-exists-warning");
+      if (warningDiv && checkLinkExists(urlInput.value.trim())) {
+        warningDiv.classList.remove("hidden");
+      } else if (warningDiv) {
+        warningDiv.classList.add("hidden");
+      }
+    });
+  }
+  
+  // Carrega links iniciais
+  setTimeout(loadLinks, 500);
+}
+
+// Inicializa quando DOM carrega
+document.addEventListener("DOMContentLoaded", () => {
+  initLinksModal();
 });
