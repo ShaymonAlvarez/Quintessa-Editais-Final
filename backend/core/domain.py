@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Lógica de domínio principal do Editais Watcher:
-- Canonização de grupos e regex por grupo
+- Canonização de grupos
 - Coleta de itens via providers
 - Migração de links relativos
 - Leitura e escrita de itens na planilha
@@ -37,7 +37,7 @@ from .sheets import (
     sheet_log,
     get_logs_tail,
 )
-from .providers_loader import load_providers, reload_provider_modules, get_available_groups
+
 
 
 # Base conhecida por fonte para absolutizar links relativos (BNDES)
@@ -112,22 +112,6 @@ def within_min_days(deadline_iso: Optional[str], min_days: int) -> bool:
     return (dt - now).days >= min_days
 
 
-def _compile_re(val: Optional[str], fallback: str = r".+") -> re.Pattern:
-    """
-    Compila regex.
-    Se 'val' for string vazia (""), compila como regex vazia (match em tudo),
-    em vez de forçar o fallback.
-    """
-    try:
-        # Se val for None, vira "". Se for "", continua "".
-        pat = (val or "").strip()
-        # Alteração: aceitamos regex vazia explicitamente para permitir "sem filtro"
-        return re.compile(pat, re.I)
-    except re.error:
-        # Se der erro de sintaxe na regex (ex: "[a-z"), aí sim usamos o fallback
-        return re.compile(fallback, re.I)
-
-
 # ---------- canonização de nomes de grupo ----------
 def _canon_group(s: str) -> str:
     """
@@ -142,38 +126,13 @@ def _canon_group(s: str) -> str:
     return s
 
 
-def _regex_key_for_group(group_name: str) -> str:
-    """
-    Mapeia o nome do grupo para a chave de configuração (RE_XXX ou RE_GOV/RE_FUNDA/RE_CORP/RE_LATAM).
-    """
-    c = _canon_group(group_name)
-    if c == _canon_group("Governo/Multilaterais"):
-        return "RE_GOV"
-    if c == _canon_group("Fundações e Prêmios"):
-        return "RE_FUNDA"
-    if c == _canon_group("Corporativo/Aceleradoras"):
-        return "RE_CORP"
-    if c == _canon_group("América Latina/Brasil"):
-        return "RE_LATAM"
-    return f"RE_{hashlib.sha1(group_name.encode()).hexdigest()[:6].upper()}"
-
-
-# Defaults para regex por grupo (AGORA VAZIOS PARA NÃO PREENCHER A TELA)
-DEFAULT_REGEX = {
-    "RE_GOV": "",
-    "RE_FUNDA": "",
-    "RE_CORP": "",
-    "RE_LATAM": "",
-}
-
-
 def _migrate_relative_links() -> int:
     """
     Conserta links relativos já salvos (ex.: '?1dmy=...') na aba 'items'.
     Retorna a quantidade de links corrigidos.
     """
     try:
-        _, _, _, ws_items_admin, _ = open_sheet()
+        _, _, ws_items_admin, _ = open_sheet()
         rows = ws_items_admin.get_all_values()
         if not rows:
             return 0
@@ -268,38 +227,15 @@ def run_collect(
 
     cfg = read_config()
 
-    # Mapa de regex por grupo
-    re_map: Dict[str, re.Pattern] = {}
-    all_groups = {p.PROVIDER.get("group", "") for p in providers_all}
-    for g in all_groups:
-        key = _regex_key_for_group(g)
-        # Se a config não tiver nada, usa o DEFAULT_REGEX (que agora é "")
-        base_pattern = cfg.get(key)
-        if base_pattern is None:
-            base_pattern = DEFAULT_REGEX.get(key, "")
-        
-        fallback = r".+" # Fallback apenas se der erro de sintaxe
-        re_map[g] = _compile_re(base_pattern, fallback=fallback)
-
     grouped: Dict[str, List[Dict[str, Any]]] = {}
     provider_stats: List[Dict[str, Any]] = []
-
-    # Se não houver providers, zera
-    if not providers:
-        # Nada a fazer
-        pass
 
     for p in providers:
         gname = p.PROVIDER.get("group", "")
         grouped.setdefault(gname, [])
         src_name = p.PROVIDER.get("name", "(sem nome)")
         try:
-            # Pega a regex compilada para este grupo
-            rgx = re_map.get(
-                gname,
-                _compile_re("", fallback=r".+")
-            )
-            items_raw = p.fetch(rgx, cfg) or []
+            items_raw = p.fetch(cfg) or []
             n_raw = len(items_raw)
 
             grouped[gname].extend(items_raw)
@@ -334,7 +270,7 @@ def run_collect(
     # Loga estatísticas na aba 'logs'
     if provider_stats:
         try:
-            _, _, _, _, ws_log = open_sheet()
+            _, _, _, ws_log = open_sheet()
             sheet_log(
                 ws_log,
                 "INFO",
@@ -362,7 +298,7 @@ def run_collect(
                 add_row(rows_to_add, gname, it)
 
         filtered_rows = [r for r in rows_to_add if r[0] not in uids_block]
-        _, _, _, ws_items, _ = open_sheet()
+        _, _, ws_items, _ = open_sheet()
         append_items_dedup(ws_items, header, body, filtered_rows)
         new_count = len(filtered_rows)
     except Exception as e:
@@ -378,31 +314,17 @@ def run_collect(
 
 def get_app_config() -> Dict[str, Any]:
     """
-    Retorna a configuração geral para o frontend:
-
-    - config cru (aba 'config')
-    - defaults de regex
-    - grupos disponíveis
-    - regex por grupo (já resolvida)
-    - status / cores
+    Retorna a configuração geral para o frontend.
     """
     cfg = read_config()
-    groups = get_available_groups()
-
-    regex_by_group: Dict[str, str] = {}
-    for g in groups:
-        key = _regex_key_for_group(g)
-        # Se não houver na config, pega do DEFAULT (que agora é vazio)
-        val = cfg.get(key)
-        if val is None:
-            val = DEFAULT_REGEX.get(key, "")
-        regex_by_group[g] = val
+    # Deriva grupos únicos direto da planilha (substitui providers_loader)
+    from .sheets import read_links
+    links = read_links()
+    groups = sorted(set(l.get("grupo", "Geral") for l in links if l.get("grupo")))
 
     return {
         "config": cfg,
-        "defaults": DEFAULT_REGEX,
         "available_groups": groups,
-        "regex_by_group": regex_by_group,
         "status_choices": STATUS_CHOICES,
         "status_bg": STATUS_BG,
         "status_colors": STATUS_COLORS,
@@ -423,14 +345,7 @@ def update_config_pairs(updates: List[Dict[str, str]]) -> Dict[str, Any]:
     return get_app_config()
 
 
-def update_group_regex(group: str, regex: str) -> Dict[str, Any]:
-    """
-    Atualiza o regex para um grupo específico (mapeando para chave RE_...).
-    Retorna a config atualizada.
-    """
-    key = _regex_key_for_group(group)
-    upsert_config(key, regex)
-    return get_app_config()
+
 
 
 def get_items_for_group(group: str, status_filter: Optional[str] = None) -> Dict[str, Any]:
@@ -524,7 +439,7 @@ def update_items(updates: List[Dict[str, Any]]) -> Dict[str, Any]:
     idx: Dict[str, int] = {
         name: header.index(name) for name in ITEMS_HEADER if name in header
     }
-    _, _, _, ws_items, _ = open_sheet()
+    _, _, ws_items, _ = open_sheet()
 
     uid_to_rownum: Dict[str, int] = {}
     for i, r in enumerate(body, start=2):  # linha 2 em diante
@@ -585,7 +500,7 @@ def delete_items_by_uids(uids: List[str]) -> Dict[str, Any]:
         if r and r[0]:
             uid_to_rownum[r[0]] = i
 
-    _, _, _, ws_items, _ = open_sheet()
+    _, _, ws_items, _ = open_sheet()
 
     rownums = [uid_to_rownum[u] for u in uids if u in uid_to_rownum]
     rownums = sorted(set(rownums), reverse=True)
@@ -611,9 +526,9 @@ def clear_all_items() -> Dict[str, Any]:
     return {"cleared": True}
 
 
-def get_diag_providers(re_gov: str, re_funda: str, re_corp: str, re_latam: str) -> Dict[str, Any]:
+def get_diag_providers() -> Dict[str, Any]:
     """
-    Executa o diagnóstico dos providers, semelhante à aba "🔬 Diagnóstico".
+    Executa o diagnóstico dos providers.
     Retorna um dicionário com:
     - "rows": lista de linhas (grupo, fonte, itens, tempo, erro, hint)
     - "logs": últimas 200 linhas da aba 'logs'
@@ -621,44 +536,17 @@ def get_diag_providers(re_gov: str, re_funda: str, re_corp: str, re_latam: str) 
     mods = load_providers()
     cfg = read_config()
 
-    re_map_diag: Dict[str, re.Pattern] = {}
-    all_groups = {m.PROVIDER.get("group", "") for m in mods}
-    for g in all_groups:
-        key = _regex_key_for_group(g)
-        
-        # Pega a regex que veio da request (re_gov, etc) ou da config, ou default ""
-        if _canon_group(g) == _canon_group("Governo/Multilaterais"):
-            pat = re_gov
-            if pat is None: pat = DEFAULT_REGEX.get("RE_GOV", "")
-        elif _canon_group(g) == _canon_group("Fundações e Prêmios"):
-            pat = re_funda
-            if pat is None: pat = DEFAULT_REGEX.get("RE_FUNDA", "")
-        elif _canon_group(g) == _canon_group("Corporativo/Aceleradoras"):
-            pat = re_corp
-            if pat is None: pat = DEFAULT_REGEX.get("RE_CORP", "")
-        elif _canon_group(g) == _canon_group("América Latina/Brasil"):
-            pat = re_latam
-            if pat is None: pat = DEFAULT_REGEX.get("RE_LATAM", "")
-        else:
-            pat = cfg.get(key)
-            if pat is None: pat = ""
-
-        # Compila com fallback seguro apenas se erro de sintaxe
-        re_map_diag[g] = _compile_re(pat, fallback=r".+")
-
     rows = []
     import time
 
     for mod in mods:
         g = mod.PROVIDER.get("group", "")
-        rgx = re_map_diag.get(g) # já compilado acima
-        
         t0 = time.time()
         err = ""
         n = 0
         url_hint = getattr(mod, "URL_HINT", "")
         try:
-            data = mod.fetch(rgx, cfg) or []
+            data = mod.fetch(cfg) or []
             n = len(data)
         except Exception as e:
             push_error(f"{mod.PROVIDER.get('name')} fetch (diag)", e)

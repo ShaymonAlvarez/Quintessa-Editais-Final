@@ -2,7 +2,6 @@ const state = {
   config: null,
   defaults: null,
   availableGroups: [],
-  regexByGroup: {},
   statusChoices: [],
   statusBg: {},
   statusColors: {},
@@ -29,9 +28,9 @@ async function fetchDollarRate() {
     if (!resp.ok) return null;
     const data = await resp.json();
     // Usamos o 'bid' (preço de compra)
-    const rate = data?.USDBRL?.bid; 
+    const rate = data?.USDBRL?.bid;
     if (!rate) return null;
-    
+
     const rateFloat = parseFloat(rate);
     return isNaN(rateFloat) ? null : rateFloat;
   } catch (e) {
@@ -58,33 +57,33 @@ function updateDollarUI(rate) {
 // NOVO: Atualiza o contador de custo na UI
 function updateCostTracker(costData) {
   if (!costData) return;
-  
+
   // Acumula tokens e custos na sessão
   state.sessionCost.inputTokens += costData.input_tokens || 0;
   state.sessionCost.outputTokens += costData.output_tokens || 0;
   state.sessionCost.costUsd += costData.cost_usd || 0;
   state.sessionCost.costBrl += costData.cost_brl || 0;
-  
+
   // Atualiza elementos da UI
   const tracker = document.getElementById("cost-tracker");
   const costBrl = document.getElementById("cost-brl");
   const costUsd = document.getElementById("cost-usd");
   const tokensCount = document.getElementById("cost-tokens-count");
-  
+
   if (tracker) {
     tracker.classList.remove("hidden");
     tracker.classList.add("updating");
     setTimeout(() => tracker.classList.remove("updating"), 300);
   }
-  
+
   if (costBrl) {
     costBrl.textContent = `R$ ${state.sessionCost.costBrl.toFixed(4).replace('.', ',')}`;
   }
-  
+
   if (costUsd) {
     costUsd.textContent = `$${state.sessionCost.costUsd.toFixed(6)}`;
   }
-  
+
   if (tokensCount) {
     const total = state.sessionCost.inputTokens + state.sessionCost.outputTokens;
     tokensCount.textContent = total.toLocaleString('pt-BR');
@@ -98,11 +97,11 @@ function showPartialCost(inputTokens, outputTokens, modelId = "sonar") {
     "sonar-pro": { input: 3.0, output: 15.0 },
     "sonar-reasoning": { input: 1.0, output: 5.0 },
   };
-  
+
   const prices = modelPrices[modelId] || modelPrices["sonar"];
   const costUsd = (inputTokens * prices.input / 1_000_000) + (outputTokens * prices.output / 1_000_000);
   const costBrl = costUsd * state.usdBrl;
-  
+
   updateCostTracker({
     input_tokens: inputTokens,
     output_tokens: outputTokens,
@@ -114,33 +113,33 @@ function showPartialCost(inputTokens, outputTokens, modelId = "sonar") {
 // ---------- Helpers One-Click (presets salvos em localStorage) ----------
 
 // Utilitário global para parse de datas YYYY-MM-DD
-function parseISO(d){
+function parseISO(d) {
   if (!d) return null;
-  const [y,m,day] = d.split("-").map(Number);
-  if(!y||!m||!day) return null;
-  return new Date(y, m-1, day);
+  const [y, m, day] = d.split("-").map(Number);
+  if (!y || !m || !day) return null;
+  return new Date(y, m - 1, day);
 }
 
 // FILTRO GLOBAL (usa somente state.filterDate / state.valueMax)
 // Regras:
 // - Se não houver data/valor no item, NÃO exclui.
 // - Só oculta quando houver dado E ele violar o limite.
-function filterVisibleItems(){
+function filterVisibleItems() {
   const allCards = document.querySelectorAll(".item-card");
   const limitDate = state.filterDate ? parseISO(state.filterDate) : null;
   const limitValue = Number.isFinite(state.valueMax) ? state.valueMax : null;
-  allCards.forEach(card=>{
+  allCards.forEach(card => {
     let ok = true;
-    if (ok && limitDate){
+    if (ok && limitDate) {
       const dl = card.dataset.deadline || "";
-      if (dl){ // só filtra se o item tiver data
-        const d = parseISO(dl.slice(0,10));
+      if (dl) { // só filtra se o item tiver data
+        const d = parseISO(dl.slice(0, 10));
         if (d && d < limitDate) ok = false;
       }
     }
-    if (ok && limitValue !== null){
+    if (ok && limitValue !== null) {
       const amtStr = card.dataset.amount || "";
-      if (amtStr !== ""){
+      if (amtStr !== "") {
         const amt = Number(amtStr);
         if (Number.isFinite(amt) && amt > limitValue) ok = false;
       }
@@ -259,9 +258,8 @@ function renderErrors(errors, containerId = "errors-section") {
   for (const [i, err] of errors.entries()) {
     const div = document.createElement("div");
     div.className = "error-item";
-    div.innerHTML = `<strong>${i + 1}. [${err.ts}] ${err.where}</strong><br>${
-      err.msg
-    }<br><details><summary>Stacktrace</summary><pre>${err.stack}</pre></details>`;
+    div.innerHTML = `<strong>${i + 1}. [${err.ts}] ${err.where}</strong><br>${err.msg
+      }<br><details><summary>Stacktrace</summary><pre>${err.stack}</pre></details>`;
     list.appendChild(div);
   }
 }
@@ -274,7 +272,6 @@ async function loadConfig() {
   state.config = cfg.config || {};
   state.defaults = cfg.defaults || {};
   state.availableGroups = cfg.available_groups || [];
-  state.regexByGroup = cfg.regex_by_group || {};
   state.statusChoices = cfg.status_choices || [];
   state.statusBg = cfg.status_bg || {};
   state.statusColors = cfg.status_colors || {};
@@ -308,7 +305,7 @@ async function loadConfig() {
 function renderConfigUI() {
   const presetSelect = document.getElementById("preset-min-days");
   const customInput = document.getElementById("custom-min-days");
-  
+
   // A cotação de USD foi removida da UI, então não tentamos mais achar o input
   // const usdInput = document.getElementById("usd-brl");
   // if (usdInput) usdInput.value = state.usdBrl.toString();
@@ -350,14 +347,14 @@ function renderGroupsCheckboxes() {
   const container = document.getElementById("groups-checkboxes");
   if (!container) return;
   container.innerHTML = "";
-  
+
   // Grupos oficiais
   const OFFICIAL_GROUPS = [
     "Governo/Multilaterais",
     "Fundações e Prêmios",
     "América Latina/Brasil"
   ];
-  
+
   for (const g of OFFICIAL_GROUPS) {
     const display = g.replace(/\s*\/\s*/g, '/');
     const id = `grp-${g.replace(/[^a-z0-9]/gi, "_")}`;
@@ -387,10 +384,8 @@ async function renderGroups() {
 
     const groupDiv = document.createElement("div");
     groupDiv.className = "group-card";
-    const regexVal = state.regexByGroup[g] || "";
     const statusOptions = state.statusChoices || [];
     const statusSelectId = `status-filter-${g.replace(/[^a-z0-9]/gi, "_")}`;
-    const regexInputId = `regex-${g.replace(/[^a-z0-9]/gi, "_")}`;
 
     groupDiv.innerHTML = `
       <div class="group-header">
@@ -401,16 +396,12 @@ async function renderGroups() {
         <div class="group-toolbar">
           <button class="primary" data-action="save" data-group="${g}">💾 Salvar alterações</button>
           <button class="danger" data-action="delete" data-group="${g}">🗑️ Apagar selecionados</button>
-          <label>Regex
-            <input type="text" id="${regexInputId}" data-group="${g}" value="${regexVal}" />
-          </label>
-          <button data-action="save-regex" data-group="${g}">Salvar regex</button>
           <label>Filtro
             <select id="${statusSelectId}" data-group="${g}">
               <option value="Todos">Todos</option>
               ${statusOptions
-                .map((s) => `<option value="${s}">${s}</option>`)
-                .join("")}
+        .map((s) => `<option value="${s}">${s}</option>`)
+        .join("")}
             </select>
           </label>
         </div>
@@ -428,9 +419,6 @@ async function renderGroups() {
     // Liga eventos dos botões / selects
     const saveBtn = groupDiv.querySelector('button[data-action="save"]');
     const delBtn = groupDiv.querySelector('button[data-action="delete"]');
-    const saveRegexBtn = groupDiv.querySelector(
-      'button[data-action="save-regex"]'
-    );
     const toggleBtn = groupDiv.querySelector(".group-toggle");
     const groupBody = groupDiv.querySelector(".group-body");
 
@@ -444,13 +432,6 @@ async function renderGroups() {
       statusSelect.addEventListener("change", () =>
         loadGroupItems(g, statusSelect.value)
       );
-    }
-    if (saveRegexBtn) {
-      saveRegexBtn.addEventListener("click", () => {
-        const inp = groupDiv.querySelector(`#${regexInputId}`);
-        if (!inp) return;
-        updateGroupRegex(g, inp.value);
-      });
     }
     if (toggleBtn && groupBody) {
       toggleBtn.addEventListener("click", () => {
@@ -493,7 +474,7 @@ async function loadGroupItems(group, statusFilter) {
     const parseBrl = (v) => {
       if (v == null) return NaN;
       if (typeof v === "number") return v;
-      const s = String(v).replace(/\./g,"").replace(/,/g,".").replace(/[^\d.]/g,"");
+      const s = String(v).replace(/\./g, "").replace(/,/g, ".").replace(/[^\d.]/g, "");
       const n = parseFloat(s);
       return isNaN(n) ? NaN : n;
     };
@@ -523,7 +504,7 @@ async function loadGroupItems(group, statusFilter) {
         card.className = "item-card";
         card.dataset.uid = it.uid;
         // guarda dados para os filtros (se vierem do backend)
-        if (it.deadline_iso) card.dataset.deadline = String(it.deadline_iso).slice(0,10);
+        if (it.deadline_iso) card.dataset.deadline = String(it.deadline_iso).slice(0, 10);
         // tenta mapear possíveis campos de valor (use o que você realmente tiver)
         const amt = it.value_brl ?? it.amount_brl ?? it.value ?? null;
         if (amt !== null && amt !== undefined) card.dataset.amount = String(amt);
@@ -568,13 +549,12 @@ async function loadGroupItems(group, statusFilter) {
               <label>Status</label>
               <select class="field-status">
                 ${state.statusChoices
-                  .map(
-                    (s) =>
-                      `<option value="${s}" ${
-                        s === it.status ? "selected" : ""
-                      }>${s}</option>`
-                  )
-                  .join("")}
+            .map(
+              (s) =>
+                `<option value="${s}" ${s === it.status ? "selected" : ""
+                }>${s}</option>`
+            )
+            .join("")}
               </select>
             </div>
             <div class="item-field">
@@ -589,15 +569,13 @@ async function loadGroupItems(group, statusFilter) {
                   Apagar
                 </label><br/>
                 <label>
-                  <input type="checkbox" class="field-dns" ${
-                    dnsChecked ? "checked" : ""
-                  } />
+                  <input type="checkbox" class="field-dns" ${dnsChecked ? "checked" : ""
+          } />
                   Não mostrar novamente
                 </label><br/>
                 <label>
-                  <input type="checkbox" class="field-seen" ${
-                    seenChecked ? "checked" : ""
-                  } />
+                  <input type="checkbox" class="field-seen" ${seenChecked ? "checked" : ""
+          } />
                   Visto
                 </label>
               </div>
@@ -741,25 +719,12 @@ async function deleteSelectedInGroup(group) {
   }
 }
 
-// Atualiza regex de um grupo
-async function updateGroupRegex(group, regex) {
-  try {
-    const data = await apiPost("/api/group/regex", { group, regex });
-    state.config = data.config.config;
-    state.regexByGroup = data.config.regex_by_group;
-    renderErrors(data.errors);
-    alert("Regex atualizado.");
-  } catch (e) {
-    alert("Erro ao atualizar regex: " + e);
-  }
-}
-
 // ---------- Botões principais de coleta / config ----------
 
 async function handleSaveMinDays() {
   const presetSelect = document.getElementById("preset-min-days");
   const customInput = document.getElementById("custom-min-days");
-  
+
   // Input de USD removido da UI, não precisamos mais lê-lo
   // const usdInput = document.getElementById("usd-brl");
 
@@ -787,7 +752,6 @@ async function handleSaveMinDays() {
   try {
     const data = await apiPost("/api/config", { updates });
     state.config = data.config.config;
-    state.regexByGroup = data.config.regex_by_group;
     state.minDays = minDays;
     state.minDaysPreset = presetLabel;
     // state.usdBrl = usdVal; // Não atualizamos mais
@@ -850,7 +814,7 @@ async function handleRunCollect() {
       return linkGroup === selGroup;
     });
   });
-  
+
   if (activeLinks.length === 0) {
     resultDiv.innerHTML = `
       <div style="padding:20px;background:rgba(255,209,102,0.2);border-radius:8px;border:1px solid rgba(255,209,102,0.4);">
@@ -887,7 +851,7 @@ async function handleRunCollect() {
 
     // Obtém valor máximo do filtro, se configurado
     const maxValue = state.valueMax || null;
-    
+
     const data = await apiPost("/api/collect/universal", {
       min_days: state.minDays,
       max_value: maxValue,
@@ -908,11 +872,11 @@ async function handleRunCollect() {
     }
 
     totalExtracted = res.items_saved || res.all_items?.length || 0;
-    
+
     // Estatísticas por grupo
     const successLines = [];
     const errorLines = [];
-    
+
     if (res.stats_by_group) {
       for (const [grupo, stats] of Object.entries(res.stats_by_group)) {
         successLines.push({
@@ -921,7 +885,7 @@ async function handleRunCollect() {
         });
       }
     }
-    
+
     // Erros específicos
     if (res.errors && res.errors.length > 0) {
       for (const err of res.errors) {
@@ -936,7 +900,7 @@ async function handleRunCollect() {
     if (progressBar) {
       progressBar.value = 100;
     }
-    
+
     // Recarrega links para atualizar status
     await loadLinks();
 
@@ -962,7 +926,7 @@ async function handleRunCollect() {
         ${costInfo}
       </div>
     `;
-    
+
     // Renderiza cards dismissíveis
     const allCards = [...successLines, ...errorLines];
     if (allCards.length > 0) {
@@ -1055,20 +1019,11 @@ async function handleClearAll() {
 
 // Diagnóstico: abre em nova janela, com barra de progresso e cancelamento
 async function handleRunDiag() {
-  const reGovInp = document.getElementById("diag-re-gov");
-  const reFundaInp = document.getElementById("diag-re-funda");
-  const reCorpInp = document.getElementById("diag-re-corp");
-  const reLatamInp = document.getElementById("diag-re-latam");
   const container = document.getElementById("diag-results");
   const progressOverlay = document.getElementById("diag-progress");
   const progressBar = document.getElementById("diag-progress-bar");
   const progressLabel = document.getElementById("diag-progress-label");
   if (!container) return;
-
-  const reGov = reGovInp ? reGovInp.value || "" : "";
-  const reFunda = reFundaInp ? reFundaInp.value || "" : "";
-  const reCorp = reCorpInp ? reCorpInp.value || "" : "";
-  const reLatam = reLatamInp ? reLatamInp.value || "" : "";
 
   container.innerHTML = "";
   setManageInteractivity(true);
@@ -1085,12 +1040,7 @@ async function handleRunDiag() {
   try {
     const data = await apiPost(
       "/api/diag/providers",
-      {
-        re_gov: reGov,
-        re_funda: reFunda,
-        re_corp: reCorp,
-        re_latam: reLatam,
-      },
+      {},
       { signal: diagAbortController.signal }
     );
     const diag = data.diag;
@@ -1146,8 +1096,8 @@ async function handleRunDiag() {
         </thead>
         <tbody>
           ${rows
-            .map(
-              (r) => `
+          .map(
+            (r) => `
             <tr>
               <td>${r.Grupo}</td>
               <td>${r.Fonte}</td>
@@ -1157,8 +1107,8 @@ async function handleRunDiag() {
               <td>${r.Hint || ""}</td>
             </tr>
           `
-            )
-            .join("")}
+          )
+          .join("")}
         </tbody>
       </table>`;
     }
@@ -1212,7 +1162,7 @@ function getPricingForModel(modelId) {
 function updatePplxMetrics(promptText, extraTokensFromLink = 0) {
   const modelSelect = document.getElementById("pplx-model");
   const maxOutInput = document.getElementById("pplx-max");
-  
+
   // Input de USD removido, usamos o valor do state
   // const usdInput = document.getElementById("usd-brl");
   const usdBrl = state.usdBrl; // Pega o valor default
@@ -1422,11 +1372,11 @@ async function handleRunPerplexity() {
 }
 
 // ---------- Tabs ----------
-function activateTab(tabName){
-  document.querySelectorAll(".tab-btn").forEach((b)=>{
+function activateTab(tabName) {
+  document.querySelectorAll(".tab-btn").forEach((b) => {
     b.classList.toggle("active", b.dataset.tab === tabName);
   });
-  document.querySelectorAll(".tab-panel").forEach((p)=>{
+  document.querySelectorAll(".tab-panel").forEach((p) => {
     p.classList.toggle("active", p.id === `tab-${tabName}`);
   });
   // quando muda de aba, ajusta o botão da sidebar conforme a tela atual
@@ -1434,35 +1384,35 @@ function activateTab(tabName){
 }
 
 // --- NOVO: quando estiver na aba Perplexity, o botão da esquerda vira "PÁGINA INICIAL"
-function updateSidebarForTab(tabName){
+function updateSidebarForTab(tabName) {
   // botões com data-perplexity-nav nas DUAS sidebars
-  const btnManage   = document.querySelector('#tab-manage .collect-sidebar [data-perplexity-nav]');
-  const btnPplx     = document.querySelector('#tab-perplexity .collect-sidebar [data-perplexity-nav]');
+  const btnManage = document.querySelector('#tab-manage .collect-sidebar [data-perplexity-nav]');
+  const btnPplx = document.querySelector('#tab-perplexity .collect-sidebar [data-perplexity-nav]');
 
   // helper para limpar e aplicar handler
   const resetBtn = (el) => {
     if (!el) return el;
     const clone = el.cloneNode(true);
-    
+
     // CORREÇÃO (aplicada da nossa conversa anterior):
     // Remove o atributo 'onclick' do HTML original.
     // Isso evita o conflito entre o 'onclick' (que definia o hash)
     // e o 'addEventListener' (que definia o href='/').
     clone.removeAttribute("onclick");
-    
+
     el.parentNode.replaceChild(clone, el);
     return clone;
   };
 
   // estado: NA ABA PERPLEXITY -> botão vira "PÁGINA INICIAL" e leva para "/"
-  if (tabName === 'perplexity' && btnPplx){
+  if (tabName === 'perplexity' && btnPplx) {
     const b = resetBtn(btnPplx);
     b.textContent = 'PÁGINA INICIAL';
     b.addEventListener('click', () => { window.location.href = '/'; });
   }
   // fora da aba Perplexity -> ambos mostram "PESQUISA NO PERPLEXITY" e abrem a aba
-  if (tabName !== 'perplexity'){
-    if (btnManage){
+  if (tabName !== 'perplexity') {
+    if (btnManage) {
       const b1 = resetBtn(btnManage);
       b1.textContent = 'PESQUISA NO PERPLEXITY';
       b1.addEventListener('click', () => {
@@ -1470,7 +1420,7 @@ function updateSidebarForTab(tabName){
         history.replaceState(null, '', '#perplexity');
       });
     }
-    if (btnPplx){
+    if (btnPplx) {
       const b2 = resetBtn(btnPplx);
       b2.textContent = 'PESQUISA NO PERPLEXITY';
       b2.addEventListener('click', () => {
@@ -1481,7 +1431,7 @@ function updateSidebarForTab(tabName){
   }
 }
 
-function setupTabs(){
+function setupTabs() {
   const buttons = document.querySelectorAll(".tab-btn");
   buttons.forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -1492,9 +1442,9 @@ function setupTabs(){
   });
   // Responde a alterações do hash vindas de botões externos/links
   window.addEventListener("hashchange", () => {
-    const hash = (location.hash || "").replace("#","");
+    const hash = (location.hash || "").replace("#", "");
     if (hash === "perplexity" || hash === "manage") activateTab(hash);
-  });  
+  });
 }
 
 // ---------- Eventos iniciais ----------
@@ -1505,7 +1455,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   setupTabs();
 
   // Abre a aba correta se vier via hash
-  const hash = (window.location.hash || "").replace("#","");
+  const hash = (window.location.hash || "").replace("#", "");
   if (hash === "perplexity" || hash === "manage") {
     activateTab(hash);
   }
@@ -1573,8 +1523,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   let filterDateISO = null;   // yyyy-mm-dd ou null
   let valueMaxCache = 5000;   // já existia; mantemos aqui visível
 
-    // Abre o seletor nativo ao clicar no chip
-  if (chipData && nativeDate){
+  // Abre o seletor nativo ao clicar no chip
+  if (chipData && nativeDate) {
     chipData.addEventListener("click", () => {
       // toggle: se já ativo, limpa; senão abre o datepicker
       if (chipData.classList.contains("active")) {
@@ -1592,8 +1542,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
     nativeDate.addEventListener("change", () => {
       const v = nativeDate.value; // yyyy-mm-dd
-      if (v){
-        const [y,m,d] = v.split("-");
+      if (v) {
+        const [y, m, d] = v.split("-");
         chipData.innerHTML = `Data: ${d}/${m}/${y} <span class="caret">▾</span>`;
         chipData.classList.add("active");
         state.filterDate = v;
@@ -1671,7 +1621,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       updatePplxMetrics(prompt, state.linkTokens);
     });
   });
-  
+
   // JAVASCRIPT REMOVIDO:
   // O listener para 'usd-brl' foi removido pois o elemento não existe mais.
   /*
@@ -1685,7 +1635,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   */
 
   // ====== NOVO: chips "Encerramento em" (não muda backend; apenas altera state.minDays) ======
-  function setDeadlinePreset(days){
+  function setDeadlinePreset(days) {
     state.minDays = parseInt(days, 10) || state.minDays;
     // Feedback visual
     deadlineChips.forEach(ch => ch.classList.toggle("active", ch.dataset.deadline === String(days)));
@@ -1695,13 +1645,13 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
 
   // ====== NOVO: mini modal do filtro de VALOR (apenas UI) ======
-  function openValueModal(){
+  function openValueModal() {
     valueMax.value = valueMaxCache;
     valueModal.classList.remove("hidden");
   }
-  function closeValueModal(){ valueModal.classList.add("hidden"); }
+  function closeValueModal() { valueModal.classList.add("hidden"); }
 
-  if (valueChip){
+  if (valueChip) {
     valueChip.addEventListener("click", () => {
       // toggle: se ativo, desliga o filtro; senão abre o modal
       if (valueChip.classList.contains("active")) {
@@ -1715,11 +1665,11 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
     });
   }
-  if (valueCancel){
+  if (valueCancel) {
     valueCancel.addEventListener("click", closeValueModal);
   }
 
-    // marca o preset inicial quando a config chega
+  // marca o preset inicial quando a config chega
   const markInitialDeadline = () => {
     const label = (state.minDaysPreset || "").toString();
     let days = parseInt(label, 10);
@@ -1729,10 +1679,10 @@ window.addEventListener("DOMContentLoaded", async () => {
 
 
 
-  if (valueApply){
+  if (valueApply) {
     valueApply.addEventListener("click", () => {
       const v = parseInt(valueMax.value || "0", 10);
-      if (!isNaN(v) && v >= 0){
+      if (!isNaN(v) && v >= 0) {
         valueMaxCache = v;
         valueChip.innerHTML = `Valor: até R$ ${v.toLocaleString("pt-BR")} <span class="caret">▾</span>`;
         state.valueMax = v;
@@ -1744,7 +1694,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
   // Fecha modal ao clicar fora
-  if (valueModal){
+  if (valueModal) {
     valueModal.addEventListener("click", (e) => {
       if (e.target === valueModal) closeValueModal();
     });
@@ -1796,7 +1746,7 @@ const linksState = {
 // Carrega links do backend
 async function loadLinks() {
   linksState.loading = true;
-  
+
   try {
     const data = await apiGet("/api/links");
     linksState.links = data.links || [];
@@ -1832,7 +1782,7 @@ function closeLinksModal() {
 function renderLinksModal() {
   const container = document.getElementById("links-grouped-list");
   if (!container) return;
-  
+
   if (linksState.links.length === 0) {
     container.innerHTML = `
       <div class="links-empty-state">
@@ -1842,7 +1792,7 @@ function renderLinksModal() {
     `;
     return;
   }
-  
+
   // Filtra por pesquisa
   const searchLower = linksState.searchTerm.toLowerCase();
   const filteredLinks = linksState.links.filter(link => {
@@ -1851,7 +1801,7 @@ function renderLinksModal() {
     const url = (link.url || "").toLowerCase();
     return name.includes(searchLower) || url.includes(searchLower);
   });
-  
+
   // Agrupa por grupo
   const groups = {};
   for (const link of filteredLinks) {
@@ -1859,7 +1809,7 @@ function renderLinksModal() {
     if (!groups[g]) groups[g] = [];
     groups[g].push(link);
   }
-  
+
   // Ordem dos grupos
   const groupOrder = ["Governo/Multilaterais", "Fundações e Prêmios", "América Latina/Brasil"];
   const sortedGroups = Object.keys(groups).sort((a, b) => {
@@ -1870,13 +1820,13 @@ function renderLinksModal() {
     if (ib === -1) return -1;
     return ia - ib;
   });
-  
+
   let html = "";
   for (const g of sortedGroups) {
     const links = groups[g];
     const isExpanded = linksState.expandedGroups.has(g);
     const allSelected = links.every(l => linksState.selectedUids.has(l.uid));
-    
+
     html += `
       <div class="links-group-card" data-group="${escapeHtml(g)}">
         <div class="links-group-header ${isExpanded ? '' : 'collapsed'}" data-group="${escapeHtml(g)}">
@@ -1898,7 +1848,7 @@ function renderLinksModal() {
       </div>
     `;
   }
-  
+
   if (!html) {
     html = `
       <div class="links-empty-state">
@@ -1907,9 +1857,9 @@ function renderLinksModal() {
       </div>
     `;
   }
-  
+
   container.innerHTML = html;
-  
+
   // Event listeners
   setupLinksEventListeners(container);
 }
@@ -1919,7 +1869,7 @@ function renderLinkItem(link) {
   const isActive = link.ativo === "true";
   const isSelected = linksState.selectedUids.has(link.uid);
   const displayName = link.nome || extractDomain(link.url);
-  
+
   return `
     <div class="link-item ${isSelected ? 'selected' : ''}" data-uid="${link.uid}">
       <input type="checkbox" class="link-item-checkbox" data-uid="${link.uid}" ${isSelected ? 'checked' : ''} />
@@ -1945,10 +1895,10 @@ function setupLinksEventListeners(container) {
     header.addEventListener("click", (e) => {
       // Não fazer toggle se clicou no checkbox
       if (e.target.type === "checkbox") return;
-      
+
       const group = header.dataset.group;
       const body = container.querySelector(`.links-group-body[data-group="${CSS.escape(group)}"]`);
-      
+
       if (linksState.expandedGroups.has(group)) {
         linksState.expandedGroups.delete(group);
         header.classList.add("collapsed");
@@ -1960,7 +1910,7 @@ function setupLinksEventListeners(container) {
       }
     });
   });
-  
+
   // Checkbox individual
   container.querySelectorAll(".link-item-checkbox").forEach(chk => {
     chk.addEventListener("change", (e) => {
@@ -1975,14 +1925,14 @@ function setupLinksEventListeners(container) {
       updateDeleteSelectedButton();
     });
   });
-  
+
   // Select all do grupo
   container.querySelectorAll(".select-all-group").forEach(chk => {
     chk.addEventListener("change", (e) => {
       e.stopPropagation();
       const group = chk.dataset.group;
       const groupLinks = linksState.links.filter(l => l.grupo === group);
-      
+
       if (chk.checked) {
         groupLinks.forEach(l => linksState.selectedUids.add(l.uid));
       } else {
@@ -1992,7 +1942,7 @@ function setupLinksEventListeners(container) {
       updateDeleteSelectedButton();
     });
   });
-  
+
   // Toggle ativo/inativo
   container.querySelectorAll(".btn-toggle-active").forEach(btn => {
     btn.addEventListener("click", (e) => {
@@ -2004,7 +1954,7 @@ function setupLinksEventListeners(container) {
       }
     });
   });
-  
+
   // Deletar individual
   container.querySelectorAll(".btn-delete-link").forEach(btn => {
     btn.addEventListener("click", (e) => {
@@ -2018,7 +1968,7 @@ function setupLinksEventListeners(container) {
 function updateDeleteSelectedButton() {
   const btn = document.getElementById("btn-delete-selected");
   if (!btn) return;
-  
+
   const count = linksState.selectedUids.size;
   btn.textContent = `🗑️ Excluir Selecionados (${count})`;
   btn.disabled = count === 0;
@@ -2028,14 +1978,14 @@ function updateDeleteSelectedButton() {
 async function deleteSelectedLinks() {
   const count = linksState.selectedUids.size;
   if (count === 0) return;
-  
+
   if (!confirm(`Tem certeza que deseja excluir ${count} link(s) selecionado(s)?`)) {
     return;
   }
-  
+
   const uids = Array.from(linksState.selectedUids);
   let deleted = 0;
-  
+
   for (const uid of uids) {
     try {
       await fetch(`/api/links/${uid}`, { method: "DELETE" });
@@ -2045,7 +1995,7 @@ async function deleteSelectedLinks() {
       console.error(`Erro ao deletar link ${uid}:`, e);
     }
   }
-  
+
   linksState.selectedUids.clear();
   renderLinksModal();
   updateDeleteSelectedButton();
@@ -2110,47 +2060,46 @@ function escapeHtml(text) {
 // Adiciona novo link
 async function addNewLink() {
   const urlInput = document.getElementById("new-link-url");
-  const grupoSelect = document.getElementById("new-link-grupo");
   const nomeInput = document.getElementById("new-link-nome");
   const warningDiv = document.getElementById("link-exists-warning");
-  
+
   const url = (urlInput?.value || "").trim();
-  const grupo = grupoSelect?.value || "";
   const nome = (nomeInput?.value || "").trim();
-  
+
   // Oculta warning
   if (warningDiv) warningDiv.classList.add("hidden");
-  
+
   if (!url) {
     alert("Por favor, informe a URL do site.");
     urlInput?.focus();
     return;
   }
-  
+
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
     alert("A URL deve começar com http:// ou https://");
     urlInput?.focus();
     return;
   }
-  
+
+  if (!nome) {
+    alert("Por favor, informe o nome da empresa ou instituição.");
+    nomeInput?.focus();
+    return;
+  }
+
   // Verifica se já existe
   if (checkLinkExists(url)) {
     if (warningDiv) warningDiv.classList.remove("hidden");
     return;
   }
-  
-  if (!grupo) {
-    alert("Por favor, selecione um grupo.");
-    grupoSelect?.focus();
-    return;
-  }
-  
+
   try {
-    const data = await apiPost("/api/links", { url, grupo, nome });
+    // Grupo omitido — o sistema define automaticamente
+    const data = await apiPost("/api/links", { url, nome });
     if (data.link) {
       linksState.links.push(data.link);
       renderLinksModal();
-      
+
       // Limpa formulário
       urlInput.value = "";
       nomeInput.value = "";
@@ -2164,14 +2113,14 @@ async function addNewLink() {
 // Toggle ativo/inativo
 async function toggleLinkActive(uid, currentActive) {
   const newActive = currentActive === "true" ? "false" : "true";
-  
+
   try {
     await fetch(`/api/links/${uid}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ativo: newActive }),
     });
-    
+
     // Atualiza estado local
     const link = linksState.links.find(l => l.uid === uid);
     if (link) {
@@ -2188,10 +2137,10 @@ async function deleteLinkById(uid) {
   if (!confirm("Tem certeza que deseja remover este link?")) {
     return;
   }
-  
+
   try {
     await fetch(`/api/links/${uid}`, { method: "DELETE" });
-    
+
     // Remove do estado local
     linksState.links = linksState.links.filter(l => l.uid !== uid);
     linksState.selectedUids.delete(uid);
@@ -2209,13 +2158,13 @@ function initLinksModal() {
   if (btnOpen) {
     btnOpen.addEventListener("click", openLinksModal);
   }
-  
+
   // Botão fechar modal
   const btnClose = document.getElementById("btn-close-links-modal");
   if (btnClose) {
     btnClose.addEventListener("click", closeLinksModal);
   }
-  
+
   // Fechar ao clicar fora
   const modal = document.getElementById("links-modal");
   if (modal) {
@@ -2223,43 +2172,43 @@ function initLinksModal() {
       if (e.target === modal) closeLinksModal();
     });
   }
-  
+
   // Botão adicionar link
   const btnAdd = document.getElementById("btn-add-link");
   if (btnAdd) {
     btnAdd.addEventListener("click", () => toggleAddLinkForm(true));
   }
-  
+
   // Botão salvar link
   const btnSave = document.getElementById("btn-save-link");
   if (btnSave) {
     btnSave.addEventListener("click", addNewLink);
   }
-  
+
   // Botão cancelar
   const btnCancel = document.getElementById("btn-cancel-link");
   if (btnCancel) {
     btnCancel.addEventListener("click", () => toggleAddLinkForm(false));
   }
-  
+
   // Botão excluir selecionados
   const btnDeleteSelected = document.getElementById("btn-delete-selected");
   if (btnDeleteSelected) {
     btnDeleteSelected.addEventListener("click", deleteSelectedLinks);
   }
-  
+
   // Botão expandir todos
   const btnExpandAll = document.getElementById("btn-expand-all");
   if (btnExpandAll) {
     btnExpandAll.addEventListener("click", expandAllGroups);
   }
-  
+
   // Botão contrair todos
   const btnCollapseAll = document.getElementById("btn-collapse-all");
   if (btnCollapseAll) {
     btnCollapseAll.addEventListener("click", collapseAllGroups);
   }
-  
+
   // Pesquisa
   const searchInput = document.getElementById("links-search");
   if (searchInput) {
@@ -2267,7 +2216,7 @@ function initLinksModal() {
       handleLinksSearch(e.target.value);
     });
   }
-  
+
   // Verifica URL ao digitar
   const urlInput = document.getElementById("new-link-url");
   if (urlInput) {
@@ -2280,12 +2229,129 @@ function initLinksModal() {
       }
     });
   }
-  
+
   // Carrega links iniciais
   setTimeout(loadLinks, 500);
+}
+
+// =================== BUSCA GLOBAL DE EDITAIS ===================
+
+/**
+ * Filtra os cards de editais visíveis com base no termo digitado.
+ * Busca em: título, link, fonte (source), agência, região e grupo.
+ */
+function applyGlobalSearch(term) {
+  const noResultsId = "global-search-no-results";
+  const existingMsg = document.getElementById(noResultsId);
+  if (existingMsg) existingMsg.remove();
+
+  const trimmed = (term || "").trim().toLowerCase();
+  const countEl = document.getElementById("global-search-count");
+  const clearBtn = document.getElementById("btn-global-search-clear");
+
+  if (!trimmed) {
+    // Sem busca: mostra tudo
+    document.querySelectorAll(".item-card").forEach(card => {
+      card.style.display = "";
+      card.classList.remove("search-match");
+    });
+    document.querySelectorAll(".source-card").forEach(sc => sc.style.display = "");
+    document.querySelectorAll(".group-body").forEach(gb => {
+      const emptyEl = gb.querySelector(".search-empty");
+      if (emptyEl) emptyEl.remove();
+    });
+    if (countEl) countEl.classList.add("hidden");
+    if (clearBtn) clearBtn.classList.add("hidden");
+    filterVisibleItems();
+    return;
+  }
+
+  if (clearBtn) clearBtn.classList.remove("hidden");
+
+  let totalVisible = 0;
+
+  // Itera por cada source-card (bloco por fonte)
+  document.querySelectorAll(".source-card").forEach(sourceCard => {
+    const cards = sourceCard.querySelectorAll(".item-card");
+    let visibleInSource = 0;
+
+    cards.forEach(card => {
+      // Campos para busca: título, link, agency/region, source-header text
+      const titleEl = card.querySelector(".item-title");
+      const linkEl = card.querySelector(".item-caption a");
+      const captionEl = card.querySelector(".item-caption");
+      const headerEl = sourceCard.querySelector(".source-header");
+
+      const title = (titleEl?.textContent || "").toLowerCase();
+      const link = (linkEl?.href || linkEl?.textContent || "").toLowerCase();
+      const caption = (captionEl?.textContent || "").toLowerCase();
+      const source = (headerEl?.textContent || "").toLowerCase();
+
+      const matches = title.includes(trimmed)
+        || link.includes(trimmed)
+        || caption.includes(trimmed)
+        || source.includes(trimmed);
+
+      card.style.display = matches ? "" : "none";
+      card.classList.toggle("search-match", matches);
+      if (matches) visibleInSource++;
+    });
+
+    // Oculta o source-card inteiro se não tiver nenhum resultado
+    sourceCard.style.display = visibleInSource > 0 ? "" : "none";
+    totalVisible += visibleInSource;
+  });
+
+  // Atualiza contador
+  if (countEl) {
+    countEl.textContent = `${totalVisible} resultado${totalVisible !== 1 ? "s" : ""}`;
+    countEl.classList.remove("hidden");
+  }
+
+  // Mensagem de "sem resultados" por grupo
+  document.querySelectorAll("[data-group-body]").forEach(gb => {
+    const oldEmpty = gb.querySelector(".search-empty");
+    if (oldEmpty) oldEmpty.remove();
+
+    const visibleSources = gb.querySelectorAll(".source-card:not([style*='display: none'])");
+    if (visibleSources.length === 0 && gb.querySelectorAll(".source-card").length > 0) {
+      const msg = document.createElement("div");
+      msg.className = "search-empty search-no-results";
+      msg.textContent = `Nenhum resultado para "${term}" neste grupo.`;
+      gb.appendChild(msg);
+    }
+  });
+}
+
+function initGlobalSearch() {
+  const input = document.getElementById("global-search-input");
+  const btn = document.getElementById("btn-global-search");
+  const clearBtn = document.getElementById("btn-global-search-clear");
+
+  if (!input) return;
+
+  // Busca ao clicar na lupa
+  if (btn) {
+    btn.addEventListener("click", () => applyGlobalSearch(input.value));
+  }
+
+  // Busca ao pressionar Enter
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") applyGlobalSearch(input.value);
+  });
+
+  // Limpa a busca
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      input.value = "";
+      applyGlobalSearch("");
+      input.focus();
+    });
+  }
 }
 
 // Inicializa quando DOM carrega
 document.addEventListener("DOMContentLoaded", () => {
   initLinksModal();
+  initGlobalSearch();
 });

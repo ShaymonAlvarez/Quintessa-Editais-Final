@@ -27,7 +27,7 @@ import requests
 
 from .config import get_perplexity_api_key
 from .errors import push_error
-from .sheets import update_link_run_status
+from .sheets import update_link_run_status, update_link_run_status_batch
 
 
 # Prompt de sistema otimizado para extração estruturada
@@ -61,11 +61,11 @@ def build_extraction_prompt(
     url: str,
     content_preview: str,
     min_days: int = 0,
-    regex_filter: str = "",
     max_value: Optional[float] = None,
 ) -> str:
     """
     Constrói o prompt de extração com filtros aplicados.
+    Preview limitado a 6000 chars para economizar tokens.
     """
     hoje = datetime.now().strftime("%Y-%m-%d")
     prazo_minimo = (datetime.now() + timedelta(days=min_days)).strftime("%Y-%m-%d")
@@ -75,7 +75,7 @@ def build_extraction_prompt(
         f"Data de hoje: {hoje}",
         "",
         "CONTEÚDO DA PÁGINA (preview):",
-        content_preview[:15000],  # Limita para não estourar tokens
+        content_preview[:6000],  # Reduzido de 15000 para economizar tokens
         "",
     ]
     
@@ -83,8 +83,6 @@ def build_extraction_prompt(
     filtros = []
     if min_days > 0:
         filtros.append(f"- Deadline mínimo: {prazo_minimo} (pelo menos {min_days} dias no futuro)")
-    if regex_filter:
-        filtros.append(f"- Filtrar por palavras-chave: {regex_filter}")
     if max_value:
         filtros.append(f"- Valor máximo: R$ {max_value:,.2f}")
     
@@ -98,9 +96,28 @@ def build_extraction_prompt(
     return "\n".join(prompt_parts)
 
 
+# Tags irrelevantes a remover do HTML antes de enviar ao Perplexity
+_TAGS_TO_REMOVE = [
+    "script", "style", "nav", "footer", "header", "aside",
+    "noscript", "iframe", "svg", "form", "button",
+]
+
+# Seletores CSS de elementos de cookie/banner a remover
+_SELECTORS_TO_REMOVE = [
+    "[class*='cookie']", "[id*='cookie']",
+    "[class*='banner']", "[class*='popup']",
+    "[class*='gdpr']", "[class*='consent']",
+    "[class*='newsletter']", "[class*='subscribe']",
+    "[role='navigation']", "[role='banner']",
+    "[role='complementary']",
+]
+
+
 def fetch_page_content(url: str) -> Tuple[str, Optional[str]]:
     """
     Baixa o conteúdo de uma página para análise.
+    Remove menus, rodapés, banners e elementos irrelevantes para
+    economizar tokens na chamada à Perplexity.
     
     Retorna: (conteúdo_texto, erro_ou_none)
     """
@@ -123,22 +140,44 @@ def fetch_page_content(url: str) -> Tuple[str, Optional[str]]:
             
             reader = PdfReader(BytesIO(resp.content))
             parts = []
-            for page in reader.pages:
+            for page in reader.pages[:10]:  # Limita a 10 páginas de PDF
                 parts.append(page.extract_text() or "")
             return " ".join(parts), None
         except Exception as e:
             return "", f"Erro ao ler PDF: {e}"
     
-    # HTML: extrai texto limpo
+    # HTML: extrai texto limpo (removendo lixo)
     raw = resp.text or ""
     if "html" in content_type or "<html" in raw.lower():
         try:
             from bs4 import BeautifulSoup
             soup = BeautifulSoup(raw, "html.parser")
-            # Remove scripts e styles
-            for script in soup(["script", "style"]):
-                script.decompose()
-            return soup.get_text(separator=" ", strip=True), None
+            
+            # Remove tags irrelevantes (nav, footer, scripts, etc)
+            for tag_name in _TAGS_TO_REMOVE:
+                for el in soup.find_all(tag_name):
+                    el.decompose()
+            
+            # Remove banners de cookie, pop-ups, etc
+            for selector in _SELECTORS_TO_REMOVE:
+                try:
+                    for el in soup.select(selector):
+                        el.decompose()
+                except Exception:
+                    pass
+            
+            # Tenta pegar só o conteúdo principal
+            main = soup.find("main") or soup.find("article") or soup.find(role="main")
+            if main and len(main.get_text(strip=True)) > 200:
+                text = main.get_text(separator=" ", strip=True)
+            else:
+                text = soup.get_text(separator=" ", strip=True)
+            
+            # Comprime espaços múltiplos
+            import re as _re
+            text = _re.sub(r'\s{3,}', '  ', text)
+            
+            return text, None
         except Exception as e:
             return raw, None
     
@@ -239,9 +278,9 @@ def extract_from_url(
     grupo: str,
     link_uid: str = "",
     min_days: int = 0,
-    regex_filter: str = "",
     max_value: Optional[float] = None,
     model_id: str = "sonar",
+    _skip_status_update: bool = False,
 ) -> Dict[str, Any]:
     """
     Função principal: extrai editais de uma URL.
@@ -251,7 +290,6 @@ def extract_from_url(
         grupo: Grupo associado (ex: "Governo/Multilaterais")
         link_uid: UID do link cadastrado (para atualizar status)
         min_days: Prazo mínimo em dias
-        regex_filter: Regex/palavras-chave para filtrar
         max_value: Valor máximo em R$
         model_id: Modelo Perplexity a usar (sonar, sonar-pro, etc)
     
@@ -268,17 +306,17 @@ def extract_from_url(
         "output_tokens": 0,
     }
     
-    # 1. Baixa conteúdo da página
+    # 1. Baixa conteúdo da página (já limpo de nav/footer/banners)
     content, error = fetch_page_content(url)
     if error:
         result["error"] = error
-        if link_uid:
+        if link_uid and not _skip_status_update:
             update_link_run_status(link_uid, "erro", 0)
         return result
     
     if not content or len(content) < 100:
         result["error"] = "Conteúdo da página muito curto ou vazio"
-        if link_uid:
+        if link_uid and not _skip_status_update:
             update_link_run_status(link_uid, "erro", 0)
         return result
     
@@ -287,7 +325,6 @@ def extract_from_url(
         url=url,
         content_preview=content,
         min_days=min_days,
-        regex_filter=regex_filter,
         max_value=max_value,
     )
     
@@ -330,7 +367,7 @@ def extract_from_url(
     result["count"] = len(valid_items)
     
     # 5. Atualiza status do link
-    if link_uid:
+    if link_uid and not _skip_status_update:
         update_link_run_status(link_uid, "ok", len(valid_items))
     
     return result
@@ -339,7 +376,6 @@ def extract_from_url(
 def extract_from_links(
     links: List[Dict],
     min_days: int = 0,
-    regex_by_group: Dict[str, str] = None,
     max_value: Optional[float] = None,
     model_id: str = "sonar",
     callback: Optional[callable] = None,
@@ -350,7 +386,6 @@ def extract_from_links(
     Args:
         links: Lista de dicts com uid, url, grupo, ativo
         min_days: Prazo mínimo em dias
-        regex_by_group: Dict de grupo -> regex
         max_value: Valor máximo
         model_id: Modelo Perplexity
         callback: Função chamada após cada link (para progresso)
@@ -358,7 +393,6 @@ def extract_from_links(
     Returns:
         Dict com: all_items, stats_by_group, errors, total_input_tokens, total_output_tokens
     """
-    regex_by_group = regex_by_group or {}
     
     results = {
         "all_items": [],
@@ -373,13 +407,15 @@ def extract_from_links(
     active_links = [l for l in links if l.get("ativo", "true") == "true"]
     results["total"] = len(active_links)
     
+    # Acumula status para fazer batch update no final (evita erro 429)
+    pending_status_updates: list = []
+    from datetime import datetime as _dt
+    now_iso = _dt.utcnow().isoformat()
+    
     for i, link in enumerate(active_links):
         url = link.get("url", "")
         grupo = link.get("grupo", "")
         uid = link.get("uid", "")
-        
-        # Pega regex do grupo
-        regex_filter = regex_by_group.get(grupo, "")
         
         try:
             extracted = extract_from_url(
@@ -387,9 +423,9 @@ def extract_from_links(
                 grupo=grupo,
                 link_uid=uid,
                 min_days=min_days,
-                regex_filter=regex_filter,
                 max_value=max_value,
                 model_id=model_id,
+                _skip_status_update=True,  # Acumula, não atualiza individual
             )
             
             # Acumula tokens
@@ -404,6 +440,14 @@ def extract_from_links(
                     "input_tokens": extracted.get("input_tokens", 0),
                     "output_tokens": extracted.get("output_tokens", 0),
                 })
+                # Acumula status de erro
+                if uid:
+                    pending_status_updates.append({
+                        "uid": uid,
+                        "status": "erro",
+                        "items_count": 0,
+                        "last_run": now_iso,
+                    })
             else:
                 results["all_items"].extend(extracted.get("items", []))
                 
@@ -414,6 +458,15 @@ def extract_from_links(
                 results["stats_by_group"][grupo]["links"] += 1
                 results["stats_by_group"][grupo]["input_tokens"] += extracted.get("input_tokens", 0)
                 results["stats_by_group"][grupo]["output_tokens"] += extracted.get("output_tokens", 0)
+                
+                # Acumula status de sucesso
+                if uid:
+                    pending_status_updates.append({
+                        "uid": uid,
+                        "status": "ok",
+                        "items_count": extracted.get("count", 0),
+                        "last_run": now_iso,
+                    })
             
         except Exception as e:
             push_error("extract_from_links", e)
@@ -422,6 +475,13 @@ def extract_from_links(
                 "grupo": grupo,
                 "error": str(e),
             })
+            if uid:
+                pending_status_updates.append({
+                    "uid": uid,
+                    "status": "erro",
+                    "items_count": 0,
+                    "last_run": now_iso,
+                })
         
         results["processed"] = i + 1
         
@@ -431,5 +491,13 @@ def extract_from_links(
                 callback(results["processed"], results["total"], url)
             except:
                 pass
+    
+    # 💾 Batch update no Google Sheets: UMA única chamada para todos os links
+    # (evita N x get_all_values + N x 3 x update_cell que causa erro 429)
+    if pending_status_updates:
+        try:
+            update_link_run_status_batch(pending_status_updates)
+        except Exception as e:
+            push_error("extract_from_links.batch_status", e)
     
     return results

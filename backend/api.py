@@ -14,14 +14,14 @@ from passlib.context import CryptContext
 # Importações existentes do seu projeto
 from .core.errors import init_error_bus, get_errors, push_error
 from .core.domain import (
-    get_app_config, update_config_pairs, update_group_regex,
+    get_app_config, update_config_pairs,
     run_collect, get_items_for_group, update_items,
     delete_items_by_uids, clear_all_items, get_diag_providers,
 )
 from .core.perplexity_core import call_perplexity_chat, count_tokens_from_url
 from .core.sheets import read_links, add_link, update_link, delete_link
 from .core.universal_extractor import extract_from_url, extract_from_links
-from .core.providers_loader import clear_groups_cache
+
 # --- AJUSTE DE CAMINHOS PARA EXECUTÁVEL (PyInstaller) ---
 # --- AJUSTE DE CAMINHOS PARA EXECUTÁVEL ---
 if getattr(sys, 'frozen', False):
@@ -202,19 +202,13 @@ class ItemsDeleteRequest(BaseModel):
     uids: List[str]
 
 
-class DiagRequest(BaseModel):
-    re_gov: str = ""
-    re_funda: str = ""
-    re_coorp: str = ""
-    re_latam: str = ""
-
 
 # ============= MODELOS PARA LINKS CADASTRADOS =============
 
 class LinkCreateRequest(BaseModel):
     url: str
-    grupo: str
     nome: str = ""
+    grupo: str = "Geral"  # opcional — default 'Geral' se não informado
 
 
 class LinkUpdateRequest(BaseModel):
@@ -250,8 +244,9 @@ class UniversalCollectRequest(BaseModel):
     min_days: int = 0
     max_value: Optional[float] = None
     model_id: str = "sonar"
-    link_uid: Optional[str] = None  # Se fornecido, coleta só esse link
-    groups: Optional[List[str]] = None  # Se fornecido, filtra por grupos selecionados
+    link_uid: Optional[str] = None
+    groups: Optional[List[str]] = None
+    max_links: int = 0  # 0 = todos os links; >0 = limita a N links
 
 
 #---------- ENDPOINTS DE CONFIG ----------
@@ -288,29 +283,6 @@ async def api_update_config(request: Request, req: ConfigUpdateRequest):
         "errors": get_errors(),
     }
 
-
-@app.post("/api/group/regex")
-async def api_update_group_regex(request: Request, payload: Dict[str, Any]):
-    """
-    Atualiza o regex de um grupo específico.
-
-    Body esperado: { "group": "...", "regex": "..." }
-    """
-
-    if request.cookies.get(SECRET_COOKIE_NAME) != "authenticated":
-        raise HTTPException(status_code=401, detail="Não autenticado")
-
-    group = payload.get("group")
-    regex = payload.get("regex", "")
-    if not group:
-        raise HTTPException(status_code=400, detail="Campo 'group' é obrigatório.")
-
-    init_error_bus()
-    cfg = update_group_regex(group, regex)
-    return {
-        "config": cfg,
-        "errors": get_errors(),
-    }
 
 
 # ---------- ENDPOINTS DE ITENS / COLETA ----------
@@ -399,15 +371,15 @@ async def api_collect_universal(request: Request, req: UniversalCollectRequest):
                 "errors": get_errors(),
             }
     
-    # Carrega regex por grupo da config
-    cfg = get_app_config()
-    regex_by_group = cfg.get("regex_by_group", {})
-    
     # Executa extração
+    # Limita quantidade de links se max_links > 0
+    links_to_process = links
+    if req.max_links and req.max_links > 0:
+        links_to_process = links[:req.max_links]
+    
     result = extract_from_links(
-        links=links,
+        links=links_to_process,
         min_days=req.min_days,
-        regex_by_group=regex_by_group,
         max_value=req.max_value,
         model_id=req.model_id,
     )
@@ -418,7 +390,7 @@ async def api_collect_universal(request: Request, req: UniversalCollectRequest):
         from .core.sheets import open_sheet, append_items_dedup, read_items_cached, invalidate_items_cache
         
         try:
-            _, _, _, ws_items, _ = open_sheet()
+            _, _, ws_items, _ = open_sheet()
             header, body = read_items_cached()
             
             new_rows = []
@@ -475,8 +447,8 @@ async def api_collect_universal(request: Request, req: UniversalCollectRequest):
     prices = model_prices.get(req.model_id, {"input": 1.0, "output": 1.0})
     cost_usd = (input_tokens * prices["input"] / 1_000_000) + (output_tokens * prices["output"] / 1_000_000)
     
-    # Cotação USD/BRL (pega da config ou usa padrão)
-    usd_brl = float(cfg.get("config", {}).get("USD_BRL", "5.5"))
+    # Cotação USD/BRL - usa valor padrão para não fazer leitura extra na planilha durante a coleta
+    usd_brl = 5.5  # fallback; o frontend aplica a cotação real do state
     cost_brl = cost_usd * usd_brl
     
     result["cost"] = {
@@ -671,17 +643,14 @@ async def api_delete_link(request: Request, uid: str):
 
 
 @app.post("/api/diag/providers")
-async def api_diag_providers(request: Request, req: DiagRequest):
+async def api_diag_providers(request: Request):
     """
-    Executa diagnóstico dos providers (similar à aba de diagnóstico).
-
-    Permite informar regex customizado para GOVERNO/FUNDA/COORP/LATAM,
-    ou usar valores vazios para cair nos defaults.
+    Executa diagnóstico dos providers.
     """
     if request.cookies.get(SECRET_COOKIE_NAME) != "authenticated":
         raise HTTPException(status_code=401, detail="Não autenticado")
     init_error_bus()
-    data = get_diag_providers(req.re_gov, req.re_funda, req.re_coorp, req.re_latam)
+    data = get_diag_providers()
     return {
         "diag": data,
         "errors": get_errors(),
@@ -691,13 +660,12 @@ async def api_diag_providers(request: Request, req: DiagRequest):
 @app.get("/api/diag/logs")
 async def api_diag_logs(request: Request):
     """
-    Retorna apenas os logs da aba 'logs' (últimas 200 linhas),
-    caso o frontend queira exibir separado.
+    Retorna apenas os logs da aba 'logs' (últimas 200 linhas).
     """
     if request.cookies.get(SECRET_COOKIE_NAME) != "authenticated":
         raise HTTPException(status_code=401, detail="Não autenticado")
     init_error_bus()
-    data = get_diag_providers("", "", "")  # reaproveita função (já traz logs)
+    data = get_diag_providers()
     return {
         "logs": data["logs"],
         "errors": get_errors(),

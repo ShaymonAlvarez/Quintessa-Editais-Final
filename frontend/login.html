@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8" />
   <title>Quintessa Editais - Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
-  
+
   <style>
     /* Ajustes específicos para a tela de login */
     body {
@@ -15,25 +16,30 @@
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      background: var(--qs-purple); /* Roxo do seu tema */
+      background: var(--qs-purple);
+      /* Roxo do seu tema */
     }
+
     .login-box {
       background: #fff;
       padding: 40px;
       border-radius: 12px;
       width: 100%;
       max-width: 380px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
       text-align: center;
     }
+
     .login-box img {
       max-width: 180px;
       margin-bottom: 24px;
     }
+
     .form-group {
       margin-bottom: 16px;
       text-align: left;
     }
+
     .form-group label {
       display: block;
       color: #333;
@@ -41,6 +47,7 @@
       margin-bottom: 6px;
       font-size: 0.9rem;
     }
+
     .form-group input {
       width: 100%;
       padding: 12px;
@@ -49,10 +56,12 @@
       font-family: 'Barlow', sans-serif;
       font-size: 1rem;
     }
+
     .btn-submit {
       width: 100%;
       padding: 14px;
-      background: var(--qs-blue); /* Azul do seu tema */
+      background: var(--qs-blue);
+      /* Azul do seu tema */
       color: #fff;
       border: none;
       border-radius: 99px;
@@ -62,7 +71,11 @@
       margin-top: 10px;
       transition: opacity 0.2s;
     }
-    .btn-submit:hover { opacity: 0.9; }
+
+    .btn-submit:hover {
+      opacity: 0.9;
+    }
+
     .error-msg {
       color: #b00020;
       font-size: 0.9rem;
@@ -70,20 +83,25 @@
       display: none;
       font-weight: 600;
     }
+
     footer {
-        margin-top: 30px;
-        color: rgba(255,255,255,0.6);
-        font-size: 0.8rem;
-        text-align: center;
+      margin-top: 30px;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.8rem;
+      text-align: center;
     }
-    footer a { color: #fff; }
+
+    footer a {
+      color: #fff;
+    }
   </style>
 </head>
+
 <body>
 
   <div class="login-box">
     <img src="/static/logo2.png" alt="Quintessa">
-    
+
     <div id="error-display" class="error-msg"></div>
 
     <form id="loginForm">
@@ -141,4 +159,5 @@
     });
   </script>
 </body>
+
 </html>
