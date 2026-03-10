@@ -143,7 +143,9 @@ def install_playwright_browsers():
 
 def open_browser():
     try:
-        webbrowser.open("http://127.0.0.1:8000")
+        # new=2 abre como nova aba na janela já aberta,
+        # reaproveitando o perfil/sessão do navegador existente
+        webbrowser.open("http://127.0.0.1:8000", new=2)
     except:
         pass
 

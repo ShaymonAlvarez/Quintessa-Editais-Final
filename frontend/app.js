@@ -826,16 +826,33 @@ async function handleRunCollect() {
     return;
   }
 
+  // Economia de créditos: ignora links já executados (last_run preenchido)
+  const eligibleLinks = activeLinks.filter((l) => !(l.last_run || "").trim());
+  if (eligibleLinks.length === 0) {
+    resultDiv.innerHTML = `
+      <div style="padding:20px;background:rgba(255,209,102,0.2);border-radius:8px;border:1px solid rgba(255,209,102,0.4);">
+        <strong>⚠️ Nenhum link disponível para nova execução.</strong><br/><br/>
+        Todos os links ativos dos grupos selecionados já foram executados.<br/>
+        Se precisar reprocessar algum, limpe o campo de última execução desse link.
+      </div>
+    `;
+    return;
+  }
+
   collectCancelRequested = false;
   resultDiv.innerHTML = "";
   btn.disabled = true;
 
   setManageInteractivity(true);
+  // Lê o limite de links do seletor (0 = todos)
+  const maxLinks = parseInt(document.getElementById("links-limit")?.value || "0", 10);
+  const effectiveCount = (maxLinks > 0 && maxLinks < eligibleLinks.length) ? maxLinks : eligibleLinks.length;
+
   if (progressOverlay && progressBar && progressLabel) {
     progressOverlay.classList.remove("hidden");
     progressBar.max = 100;
     progressBar.value = 0;
-    progressLabel.textContent = `Iniciando coleta de ${activeLinks.length} link(s) em ${selectedGroups.length} grupo(s)…`;
+    progressLabel.textContent = `Iniciando coleta de ${effectiveCount} link(s) em ${selectedGroups.length} grupo(s)…`;
   }
 
   let totalExtracted = 0;
@@ -843,7 +860,7 @@ async function handleRunCollect() {
 
   try {
     if (progressLabel) {
-      progressLabel.textContent = `🤖 Processando ${activeLinks.length} link(s) via IA…`;
+      progressLabel.textContent = `🤖 Processando ${effectiveCount} link(s) via IA…`;
     }
     if (progressBar) {
       progressBar.value = 10;
@@ -857,6 +874,8 @@ async function handleRunCollect() {
       max_value: maxValue,
       model_id: "sonar", // Modelo mais barato e rápido
       groups: selectedGroups, // Filtra pelos grupos selecionados
+      max_links: maxLinks,    // 0 = todos; >0 = limita a N links
+      skip_already_run: true,
     });
 
     if (progressBar) {
@@ -918,11 +937,14 @@ async function handleRunCollect() {
       </div>
     ` : '';
 
+    const skippedAlreadyRun = res.skipped_already_run || 0;
+
     let resultHtml = `
       <div style="padding:20px;background:rgba(6,214,160,0.15);border-radius:8px;border:1px solid rgba(6,214,160,0.3);margin-bottom:16px;">
         <strong style="font-size:1.1rem;">${headerLine}</strong><br/><br/>
         📊 <strong>Editais extraídos:</strong> ${totalExtracted}<br/>
-        🔗 <strong>Links processados:</strong> ${res.processed || activeLinks.length} de ${res.total || activeLinks.length}
+        🔗 <strong>Links processados:</strong> ${res.processed || effectiveCount} de ${res.total || effectiveCount}
+        ${skippedAlreadyRun > 0 ? `<br/>⏭️ <strong>Links pulados (já executados):</strong> ${skippedAlreadyRun}` : ""}
         ${costInfo}
       </div>
     `;

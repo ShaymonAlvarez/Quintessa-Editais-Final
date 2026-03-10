@@ -247,6 +247,7 @@ class UniversalCollectRequest(BaseModel):
     link_uid: Optional[str] = None
     groups: Optional[List[str]] = None
     max_links: int = 0  # 0 = todos os links; >0 = limita a N links
+    skip_already_run: bool = True  # True = não reprocessa links já executados
 
 
 #---------- ENDPOINTS DE CONFIG ----------
@@ -370,8 +371,47 @@ async def api_collect_universal(request: Request, req: UniversalCollectRequest):
                 },
                 "errors": get_errors(),
             }
-    
-    # Executa extração
+
+    # Filtra apenas links ativos (ativo == 'true'), igual ao frontend
+    links = [l for l in links if l.get("ativo", "true") == "true"]
+    if not links:
+        return {
+            "result": {
+                "all_items": [],
+                "stats_by_group": {},
+                "errors": [],
+                "processed": 0,
+                "total": 0,
+                "message": "Nenhum link ativo para processar."
+            },
+            "errors": get_errors(),
+        }
+
+    skipped_already_run = 0
+    if req.skip_already_run:
+        # Regra de economia: não reprocessa links com last_run preenchido.
+        not_processed_links = []
+        for link in links:
+            if (link.get("last_run") or "").strip():
+                skipped_already_run += 1
+                continue
+            not_processed_links.append(link)
+        links = not_processed_links
+
+        if not links:
+            return {
+                "result": {
+                    "all_items": [],
+                    "stats_by_group": {},
+                    "errors": [],
+                    "processed": 0,
+                    "total": 0,
+                    "skipped_already_run": skipped_already_run,
+                    "message": "Todos os links ativos selecionados já foram processados anteriormente."
+                },
+                "errors": get_errors(),
+            }
+
     # Limita quantidade de links se max_links > 0
     links_to_process = links
     if req.max_links and req.max_links > 0:
@@ -383,6 +423,7 @@ async def api_collect_universal(request: Request, req: UniversalCollectRequest):
         max_value=req.max_value,
         model_id=req.model_id,
     )
+    result["skipped_already_run"] = skipped_already_run
     
     # Se encontrou itens, grava na planilha
     if result.get("all_items"):
